@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import mammos_entity as me
-import mammos_units as u
+
+# import mammos_units as u
 from rich.logging import RichHandler
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 # TODO pydantic dataclass with validation?
 @dataclass
 class UppAsdDataset:
+    """Spindynamics dataset."""
+
     A_0: me.Entity
     """Exchange stiffness constant at T = 0 K."""
 
