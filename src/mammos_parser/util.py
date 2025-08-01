@@ -38,8 +38,8 @@ class Collected:
 
 
 def check_directory(
-    global_root_dir: Path,
-    dir_name: Path,
+    root_dir: Path,
+    dir_name: str | Path,
     *,
     required_files: set[str] | None = None,
     optional_files: set[str] | None = None,
@@ -55,14 +55,18 @@ def check_directory(
     required_file_pairs = required_file_pairs or []
     required_subdirs = required_subdirs or set()
     optional_subdirs = optional_subdirs or set()
+    dir_name = Path(dir_name)
 
-    logger.info("Processing directory '%s'", dir_name)
-    dir_elems = list(dir_name.iterdir())
+    if not root_dir.is_absolute():
+        raise ValueError(f"root_dir='{root_dir}' must be absolute.")
+
+    logger.warning("Processing directory '%s'", root_dir / dir_name)
+    dir_elems = list((root_dir / dir_name).iterdir())
     found_files = set(f.name for f in dir_elems if f.is_file())
     found_dirs = set(d.name for d in dir_elems if d.is_dir())
 
-    logger.debug("Directory contains files: %s", found_files)
-    logger.debug("Directory contains subdirectories: %s", found_dirs)
+    logger.warning("Directory contains files: %s", found_files)
+    logger.warning("Directory contains subdirectories: %s", found_dirs)
 
     # variables for return object
     collected_valid_files = set()
@@ -174,14 +178,10 @@ def check_directory(
         logger.warning("Found unexpected dir '%s'", elem)
         dir_ok = False
 
-    logger.warning(global_root_dir)
+    logger.warning(root_dir)
     return Collected(
-        root_dir=global_root_dir,
+        root_dir=root_dir,
         tree_ok=dir_ok,
-        collected_files=set(
-            (dir_name / f).relative_to(global_root_dir) for f in collected_valid_files
-        ),
-        collected_dirs=set(
-            (dir_name / d).relative_to(global_root_dir) for d in collected_valid_dirs
-        ),
+        collected_files=set(dir_name / f for f in collected_valid_files),
+        collected_dirs=set(dir_name / d for d in collected_valid_dirs),
     )
