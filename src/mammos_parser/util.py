@@ -18,8 +18,8 @@ class Collected:
 
     root_dir: Path
     tree_ok: bool
-    collected_files: set[Path]
-    collected_dirs: set[Path]
+    collected_files: set[str]
+    collected_dirs: set[str]
 
     def __bool__(self):
         """Instance is true if all required files/dirs were found."""
@@ -60,13 +60,13 @@ def check_directory(
     if not root_dir.is_absolute():
         raise ValueError(f"root_dir='{root_dir}' must be absolute.")
 
-    logger.warning("Processing directory '%s'", root_dir / dir_name)
+    logger.info("Processing directory '%s'", root_dir / dir_name)
     dir_elems = list((root_dir / dir_name).iterdir())
     found_files = set(f.name for f in dir_elems if f.is_file())
     found_dirs = set(d.name for d in dir_elems if d.is_dir())
 
-    logger.warning("Directory contains files: %s", found_files)
-    logger.warning("Directory contains subdirectories: %s", found_dirs)
+    logger.debug("Directory contains files: %s", found_files)
+    logger.debug("Directory contains subdirectories: %s", found_dirs)
 
     # variables for return object
     collected_valid_files = set()
@@ -77,12 +77,12 @@ def check_directory(
 
     # required files
     req_found = required_files & found_files
-    for elem in req_found:
+    for elem in sorted(req_found):
         logger.debug("Found required file '%s'", elem)
 
     collected_valid_files.update(req_found)
 
-    for elem in required_files - found_files:
+    for elem in sorted(required_files - found_files):
         logger.error("Did not find required file '%s'", elem)
         dir_ok = False
 
@@ -90,12 +90,12 @@ def check_directory(
 
     # optional files
     opt_found = optional_files & found_files
-    for elem in opt_found:
+    for elem in sorted(opt_found):
         logger.debug("Found optional file '%s'", elem)
 
     collected_valid_files.update(opt_found)
 
-    for elem in optional_files - found_files:
+    for elem in sorted(optional_files - found_files):
         logger.debug("Did not find optional file '%s'", elem)
 
     found_files -= opt_found
@@ -104,10 +104,14 @@ def check_directory(
     for choices in required_files_from_choices:
         found_choices = choices & found_files
         if not found_choices:
-            logger.error("Did not find one of %s", choices)
+            logger.error("Did not find one of %s", sorted(choices))
             dir_ok = False
         elif len(found_choices) > 1:
-            logger.error("Found %s, only one of %s is allowed", found_choices, choices)
+            logger.error(
+                "Found %s, only one of %s is allowed",
+                sorted(found_choices),
+                sorted(choices),
+            )
             dir_ok = False
         else:
             collected_valid_files.update(found_choices)
@@ -123,7 +127,7 @@ def check_directory(
         )
 
         existing_pairs = candidates_a & candidates_b
-        for pair in existing_pairs:
+        for pair in sorted(existing_pairs):
             logger.debug(
                 "Found file pair '%s%s', '%s%s'", prefix_a, pair, prefix_b, pair
             )
@@ -133,11 +137,11 @@ def check_directory(
             dir_ok = False
 
         missing_b = candidates_a - candidates_b
-        for elem in missing_b:
+        for elem in sorted(missing_b):
             dir_ok = False
             logger.error("Found '%s%s' but not '%s%s'", prefix_a, elem, prefix_b, elem)
 
-        missing_a = candidates_b - candidates_a
+        missing_a = sorted(candidates_b - candidates_a)
         for elem in missing_a:
             dir_ok = False
             logger.error("Found '%s%s' but not '%s%s'", prefix_b, elem, prefix_a, elem)
@@ -146,7 +150,7 @@ def check_directory(
         found_files -= set(prefix_b + f for f in candidates_b)
 
     # erroneous additional files
-    for elem in found_files:
+    for elem in sorted(found_files):
         logger.warning("Found unexpected file '%s'", elem)
         dir_ok = False
 
@@ -154,12 +158,12 @@ def check_directory(
 
     # required directories
     req_dirs_found = required_subdirs & found_dirs
-    for elem in req_dirs_found:
+    for elem in sorted(req_dirs_found):
         logger.debug("Found required subdirectory '%s'", elem)
 
     collected_valid_dirs.update(req_dirs_found)
 
-    for elem in required_subdirs - found_dirs:
+    for elem in sorted(required_subdirs - found_dirs):
         logger.error("Did not find required subdirectory '%s'", elem)
         dir_ok = False
 
@@ -167,21 +171,20 @@ def check_directory(
 
     # optional directories
     opt_dirs_found = optional_subdirs & found_dirs
-    for elem in opt_dirs_found:
+    for elem in sorted(opt_dirs_found):
         logger.debug("Found optional subdirectory %s", elem)
 
     found_dirs -= opt_dirs_found
     collected_valid_dirs.update(opt_dirs_found)
 
     # erroneous additional dirs
-    for elem in found_dirs:
+    for elem in sorted(found_dirs):
         logger.warning("Found unexpected dir '%s'", elem)
         dir_ok = False
 
-    logger.warning(root_dir)
     return Collected(
         root_dir=root_dir,
         tree_ok=dir_ok,
-        collected_files=set(dir_name / f for f in collected_valid_files),
-        collected_dirs=set(dir_name / d for d in collected_valid_dirs),
+        collected_files=set((dir_name / f).as_posix() for f in collected_valid_files),
+        collected_dirs=set((dir_name / d).as_posix() for d in collected_valid_dirs),
     )

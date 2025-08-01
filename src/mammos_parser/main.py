@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    """Command-line entry point to validate datasets."""
     parser = argparse.ArgumentParser(
         prog="mammos-parser", description="Validate mammos datasets."
     )
@@ -42,6 +43,6 @@ def main():
     )
 
     if args.mode == "validate-uppsala":
-        path = args.path.absolute()
-        if not uppsala.check_combined_dataset(path):
+        path = args.path
+        if not uppsala.collect_dataset(path):
             sys.exit(1)

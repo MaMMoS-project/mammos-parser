@@ -10,15 +10,13 @@ def test_collected():
     root = Path("/my/dataset/root")
     util.Collected(root, True, set(), set())
 
-    c1 = util.Collected(
-        root, True, {Path("file-1")}, {Path("subdir-1"), Path("subdir-2")}
-    )
-    c2 = util.Collected(root, True, {Path("subdir-1/file-1")}, set())
+    c1 = util.Collected(root, True, {"file-1"}, {"subdir-1", "subdir-2"})
+    c2 = util.Collected(root, True, {"subdir-1/file-1"}, set())
     c3 = util.Collected(
         root,
         False,
-        {Path("subdir-2/file-1"), Path("subdir-2/file2")},
-        {Path("subdir-2/subdir-3")},
+        {"subdir-2/file-1", "subdir-2/file2"},
+        {"subdir-2/subdir-3"},
     )
 
     assert c1
@@ -27,40 +25,40 @@ def test_collected():
 
     c12 = c1 + c2
     assert c12
-    assert c12.collected_files == {Path("file-1"), Path("subdir-1/file-1")}
-    assert c12.collected_dirs == {Path("subdir-1"), Path("subdir-2")}
+    assert c12.collected_files == {"file-1", "subdir-1/file-1"}
+    assert c12.collected_dirs == {"subdir-1", "subdir-2"}
 
     c13 = c1 + c3
     assert not c13
     assert c13.collected_files == {
-        Path("file-1"),
-        Path("subdir-2/file-1"),
-        Path("subdir-2/file2"),
+        "file-1",
+        "subdir-2/file-1",
+        "subdir-2/file2",
     }
     assert c13.collected_dirs == {
-        Path("subdir-1"),
-        Path("subdir-2"),
-        Path("subdir-2/subdir-3"),
+        "subdir-1",
+        "subdir-2",
+        "subdir-2/subdir-3",
     }
 
     c123 = c1 + c2 + c3
     assert not c123
     assert c123.collected_files == {
-        Path("file-1"),
-        Path("subdir-1/file-1"),
-        Path("subdir-2/file-1"),
-        Path("subdir-2/file2"),
+        "file-1",
+        "subdir-1/file-1",
+        "subdir-2/file-1",
+        "subdir-2/file2",
     }
     assert c123.collected_dirs == {
-        Path("subdir-1"),
-        Path("subdir-2"),
-        Path("subdir-2/subdir-3"),
+        "subdir-1",
+        "subdir-2",
+        "subdir-2/subdir-3",
     }
 
     assert c13.collected_dirs == {
-        Path("subdir-1"),
-        Path("subdir-2"),
-        Path("subdir-2/subdir-3"),
+        "subdir-1",
+        "subdir-2",
+        "subdir-2/subdir-3",
     }
     with pytest.raises(ValueError):
         c1 + util.Collected("/abc", True, set(), set())
@@ -77,7 +75,7 @@ def test_check_directory_required_files_only_one_file(tmp_path: Path):
     (tmp_path / "file-1").touch()
     c = util.check_directory(tmp_path, ".", required_files={"file-1"})
     assert c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(tmp_path, ".", required_files={"file-2"})
@@ -91,24 +89,24 @@ def test_check_directory_required_files_only_multiple_files(tmp_path: Path):
     (tmp_path / "file-2").touch()
     c = util.check_directory(tmp_path, ".", required_files={"file-1"})
     assert not c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(tmp_path, ".", required_files={"file-1", "file-2"})
     assert c
-    assert c.collected_files == {Path("file-1"), Path("file-2")}
+    assert c.collected_files == {"file-1", "file-2"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(
         tmp_path, ".", required_files={"file-1", "file-2", "file-3"}
     )
     assert not c
-    assert c.collected_files == {Path("file-1"), Path("file-2")}
+    assert c.collected_files == {"file-1", "file-2"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(tmp_path, ".", required_files={"file-1", "file-3"})
     assert not c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
 
@@ -121,7 +119,7 @@ def test_check_directory_optional_files_only(tmp_path: Path):
     (tmp_path / "file-1").touch()
     c = util.check_directory(tmp_path, ".", optional_files={"file-1"})
     assert c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
     (tmp_path / "file-1").touch()
@@ -129,19 +127,19 @@ def test_check_directory_optional_files_only(tmp_path: Path):
 
     c = util.check_directory(tmp_path, ".", optional_files={"file-1", "file-2"})
     assert c
-    assert c.collected_files == {Path("file-1"), Path("file-2")}
+    assert c.collected_files == {"file-1", "file-2"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(
         tmp_path, ".", optional_files={"file-1", "file-2", "file-3"}
     )
     assert c
-    assert c.collected_files == {Path("file-1"), Path("file-2")}
+    assert c.collected_files == {"file-1", "file-2"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(tmp_path, ".", optional_files={"file-1", "file-3"})
     assert not c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
 
@@ -159,7 +157,7 @@ def test_check_directory_file_choices_only(tmp_path: Path):
         tmp_path, ".", required_files_from_choices=[{"file-1", "file-2"}]
     )
     assert c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
     (tmp_path / "file-2").touch()
@@ -175,14 +173,14 @@ def test_check_directory_file_choices_only(tmp_path: Path):
         tmp_path, ".", required_files_from_choices=[{"file-1", "file-3"}]
     )
     assert not c
-    assert c.collected_files == {Path("file-1")}
+    assert c.collected_files == {"file-1"}
     assert c.collected_dirs == set()
 
     c = util.check_directory(
         tmp_path, ".", required_files_from_choices=[{"file-1"}, {"file-2"}]
     )
     assert c
-    assert c.collected_files == {Path("file-1"), Path("file-2")}
+    assert c.collected_files == {"file-1", "file-2"}
     assert c.collected_dirs == set()
 
 
@@ -197,14 +195,14 @@ def test_check_directory_file_pairs_only(tmp_path: Path):
 
     c = util.check_directory(tmp_path, ".", required_file_pairs=[("in-", "out-")])
     assert c
-    assert c.collected_files == {Path("in-1"), Path("out-1")}
+    assert c.collected_files == {"in-1", "out-1"}
     assert c.collected_dirs == set()
 
     (tmp_path / "in-2").touch()
 
     c = util.check_directory(tmp_path, ".", required_file_pairs=[("in-", "out-")])
     assert not c
-    assert c.collected_files == {Path("in-1"), Path("out-1")}
+    assert c.collected_files == {"in-1", "out-1"}
     assert c.collected_dirs == set()
 
     (tmp_path / "out-2").touch()
@@ -212,10 +210,10 @@ def test_check_directory_file_pairs_only(tmp_path: Path):
     c = util.check_directory(tmp_path, ".", required_file_pairs=[("in-", "out-")])
     assert c
     assert c.collected_files == {
-        Path("in-1"),
-        Path("out-1"),
-        Path("in-2"),
-        Path("out-2"),
+        "in-1",
+        "out-1",
+        "in-2",
+        "out-2",
     }
     assert c.collected_dirs == set()
 
@@ -226,10 +224,10 @@ def test_check_directory_file_pairs_only(tmp_path: Path):
     )
     assert not c
     assert c.collected_files == {
-        Path("in-1"),
-        Path("out-1"),
-        Path("in-2"),
-        Path("out-2"),
+        "in-1",
+        "out-1",
+        "in-2",
+        "out-2",
     }
     assert c.collected_dirs == set()
 
@@ -240,12 +238,12 @@ def test_check_directory_file_pairs_only(tmp_path: Path):
     )
     assert c
     assert c.collected_files == {
-        Path("in-1"),
-        Path("out-1"),
-        Path("in-2"),
-        Path("out-2"),
-        Path("a.txt"),
-        Path("b.txt"),
+        "in-1",
+        "out-1",
+        "in-2",
+        "out-2",
+        "a.txt",
+        "b.txt",
     }
     assert c.collected_dirs == set()
 
@@ -260,18 +258,18 @@ def test_check_directory_required_dirs_only(tmp_path: Path):
     c = util.check_directory(tmp_path, ".", required_subdirs={"dir-1"})
     assert c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1")}
+    assert c.collected_dirs == {"dir-1"}
 
     (tmp_path / "dir-2").mkdir()
     c = util.check_directory(tmp_path, ".", required_subdirs={"dir-1"})
     assert not c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1")}
+    assert c.collected_dirs == {"dir-1"}
 
     c = util.check_directory(tmp_path, ".", required_subdirs={"dir-1", "dir-2"})
     assert c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1"), Path("dir-2")}
+    assert c.collected_dirs == {"dir-1", "dir-2"}
 
 
 def test_check_directory_optional_dirs_only(tmp_path: Path):
@@ -284,23 +282,23 @@ def test_check_directory_optional_dirs_only(tmp_path: Path):
     c = util.check_directory(tmp_path, ".", optional_subdirs={"dir-1"})
     assert c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1")}
+    assert c.collected_dirs == {"dir-1"}
 
     c = util.check_directory(tmp_path, ".", optional_subdirs={"dir-1", "dir-2"})
     assert c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1")}
+    assert c.collected_dirs == {"dir-1"}
 
     (tmp_path / "dir-2").mkdir()
     c = util.check_directory(tmp_path, ".", optional_subdirs={"dir-1", "dir-2"})
     assert c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1"), Path("dir-2")}
+    assert c.collected_dirs == {"dir-1", "dir-2"}
 
     c = util.check_directory(tmp_path, ".", optional_subdirs={"dir-1"})
     assert not c
     assert c.collected_files == set()
-    assert c.collected_dirs == {Path("dir-1")}
+    assert c.collected_dirs == {"dir-1"}
 
 
 def test_check_directory_full(tmp_path: Path):
@@ -337,12 +335,12 @@ def test_check_directory_full(tmp_path: Path):
     )
     assert c
     assert c.collected_files == {
-        Path("file-req"),
-        Path("choice-1"),
-        Path("a-file"),
-        Path("b-file"),
+        "file-req",
+        "choice-1",
+        "a-file",
+        "b-file",
     }
-    assert c.collected_dirs == {Path("dir-req")}
+    assert c.collected_dirs == {"dir-req"}
 
     (tmp_path / "file-opt").touch()
     (tmp_path / "dir-opt").mkdir()
@@ -359,13 +357,13 @@ def test_check_directory_full(tmp_path: Path):
     )
     assert c
     assert c.collected_files == {
-        Path("file-req"),
-        Path("choice-1"),
-        Path("a-file"),
-        Path("b-file"),
-        Path("file-opt"),
+        "file-req",
+        "choice-1",
+        "a-file",
+        "b-file",
+        "file-opt",
     }
-    assert c.collected_dirs == {Path("dir-req"), Path("dir-opt")}
+    assert c.collected_dirs == {"dir-req", "dir-opt"}
 
     (tmp_path / "file-not-wanted").touch()
     c = util.check_directory(
@@ -380,13 +378,13 @@ def test_check_directory_full(tmp_path: Path):
     )
     assert not c
     assert c.collected_files == {
-        Path("file-req"),
-        Path("choice-1"),
-        Path("a-file"),
-        Path("b-file"),
-        Path("file-opt"),
+        "file-req",
+        "choice-1",
+        "a-file",
+        "b-file",
+        "file-opt",
     }
-    assert c.collected_dirs == {Path("dir-req"), Path("dir-opt")}
+    assert c.collected_dirs == {"dir-req", "dir-opt"}
 
 
 def test_check_directory_full_relative(tmp_path: Path):
@@ -412,13 +410,13 @@ def test_check_directory_full_relative(tmp_path: Path):
     assert c
     assert c.root_dir == tmp_path
     assert c.collected_files == {
-        Path("my_base/mysub/file-req"),
-        Path("my_base/mysub/choice-1"),
-        Path("my_base/mysub/a-file"),
-        Path("my_base/mysub/b-file"),
-        Path("my_base/mysub/file-opt"),
+        "my_base/mysub/file-req",
+        "my_base/mysub/choice-1",
+        "my_base/mysub/a-file",
+        "my_base/mysub/b-file",
+        "my_base/mysub/file-opt",
     }
     assert c.collected_dirs == {
-        Path("my_base/mysub/dir-req"),
-        Path("my_base/mysub/dir-opt"),
+        "my_base/mysub/dir-req",
+        "my_base/mysub/dir-opt",
     }
