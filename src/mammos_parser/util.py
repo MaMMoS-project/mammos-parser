@@ -135,6 +135,9 @@ def check_directory(
             )
             dir_ok = False
         else:
+            logger.debug(
+                "Found '%s' from choices %s", list(found_choices)[0], sorted(choices)
+            )
             collected_valid_files.update(found_choices)
         found_files -= found_choices
 
