@@ -72,7 +72,7 @@ def test_check_directory_empty(tmp_path: Path):
 
 def test_check_directory_exceptions():
     with pytest.raises(ValueError):
-        util.check_directory("my/dataset/root", ".")
+        util.check_directory(Path("my/dataset/root"), ".")
 
 
 def test_check_directory_required_files_only_one_file(tmp_path: Path):
