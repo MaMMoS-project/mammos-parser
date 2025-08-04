@@ -82,7 +82,7 @@ def check_directory(
     if not root_dir.is_absolute():
         raise ValueError(f"root_dir='{root_dir}' must be absolute.")
 
-    logger.info("Processing directory '%s'", root_dir / dir_name)
+    logger.info("Processing directory '%s/%s'", root_dir.name, dir_name)
     dir_elems = list((root_dir / dir_name).iterdir())
     found_files = set(f.name for f in dir_elems if f.is_file())
     found_dirs = set(d.name for d in dir_elems if d.is_dir())

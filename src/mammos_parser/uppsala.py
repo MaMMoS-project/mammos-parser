@@ -66,9 +66,9 @@ def collect_rspt_data(base_path: Path) -> util.Collected:
 
 def collect_dataset(base_path: Path) -> util.Collected:
     """Return False if any of the required files is not present."""
-    logger.info("Reading uppsala dataset '%s'", base_path)
+    base_path = base_path.resolve()
 
-    base_path = base_path.absolute()
+    logger.info("Reading uppsala dataset '%s'", base_path)
 
     if not base_path.is_dir():
         logger.critical("Base directory '%s' does not exist.", base_path)
