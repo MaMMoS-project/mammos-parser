@@ -61,9 +61,10 @@ def check_directory(
             files with a common suffix must exist. Example: for the element
             ``("a-", "b-")`` paires like ``a-0`` AND ``b-0`` or ``a-in.txt`` AND
             ``b-in.txt`` must exist.
-        required_subdirs: List of subdirectories (only one level) that must exist in
-            `dir_name`.
-        optional_subdirs: List of optional sudbirectories that must exist in `dir_name`.
+        required_subdirs: List of subdirectories (only one level, no path separators)
+            that must exist in `dir_name`.
+        optional_subdirs: List of optional sudbirectories (only one level, no path
+            separators) that must exist in `dir_name`.
 
     Returns:
         An object that contains all found expected files and directories and indicates
