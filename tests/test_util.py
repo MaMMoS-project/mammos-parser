@@ -8,7 +8,6 @@ from mammos_parser import util
 def test_collected():
     # empty is allowed
     root = Path("/my/dataset/root")
-    util.Collected(root, True, set(), set())
 
     c1 = util.Collected(root, True, {"file-1"}, {"subdir-1", "subdir-2"})
     c2 = util.Collected(root, True, {"subdir-1/file-1"}, set())
@@ -69,6 +68,11 @@ def test_check_directory_empty(tmp_path: Path):
     assert c
     assert c.collected_files == set()
     assert c.collected_dirs == set()
+
+
+def test_check_directory_exceptions():
+    with pytest.raises(ValueError):
+        util.check_directory("my/dataset/root", ".")
 
 
 def test_check_directory_required_files_only_one_file(tmp_path: Path):
