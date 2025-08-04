@@ -176,7 +176,7 @@ def check_directory(
 
     # erroneous additional files
     for elem in sorted(found_files):
-        logger.warning("Found unexpected file '%s'", elem)
+        logger.error("Found unexpected file '%s'", elem)
         dir_ok = False
 
     # === directories ===
@@ -204,7 +204,7 @@ def check_directory(
 
     # erroneous additional dirs
     for elem in sorted(found_dirs):
-        logger.warning("Found unexpected dir '%s'", elem)
+        logger.error("Found unexpected dir '%s'", elem)
         dir_ok = False
 
     return Collected(
