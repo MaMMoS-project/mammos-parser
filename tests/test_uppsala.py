@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import mammos_entity as me
+
 from mammos_parser import uppsala
 
 
@@ -32,6 +34,17 @@ def test_all_files_present(tmp_path: Path):
         make_file(tmp_path / "uppasd" / "mc" / name)
 
     # all required files, first calculation mode
+
+    # content of intrinsic_properties.yaml missing
+    assert not uppsala.collect_dataset(tmp_path)
+
+    # add required entries to intrinsic_properties.yaml
+    me.io.entities_to_file(
+        tmp_path / "intrinsic_properties.yaml",
+        Js=me.Js(2, "T"),
+        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        Tc=me.Tc(1000, "K"),
+    )
     assert uppsala.collect_dataset(tmp_path)
 
     # second calculation mode in addition: not allowed
