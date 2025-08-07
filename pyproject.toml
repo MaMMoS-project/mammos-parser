@@ -6,15 +6,11 @@ build-backend = "hatchling.build"
 name = "mammos-parser"
 version = "0.1.0"
 authors = [
-  { name = "Santa Pile" },
-  { name = "Wilfried Hortschitz" },
-  { name = "Martin Dobiasch" },
-  { name = "Swapneel Amit Pathak" },
-  { name = "Andrea Petrocchi" },
   { name = "Martin Lang" },
   { name = "Samuel Holt" },
+  { name = "Swapneel Amit Pathak" },
+  { name = "Andrea Petrocchi" },
   { name = "Hans Fangohr" },
-  { name = "Thomas Schrefl" },
 ]
 description = "Parse datasets from the MaMMoS project partners"
 readme = "README.md"
