@@ -18,14 +18,13 @@ logger = getLogger(__name__)
 def collect_uppasd_data(base_path: Path) -> util.Collected:
     """Check structure of uppasd dataset."""
     data = util.check_directory(
-        base_path, "uppasd", optional_files={"README.md"}, required_subdirs={"mc"}
+        base_path, "UppASD", optional_files={"README.md"}, required_subdirs={"MC"}
     )
-    if "uppasd/mc" in data.collected_dirs:
+    if "UppASD/MC" in data.collected_dirs:
         data += util.check_directory(
             base_path,
-            "uppasd/mc",
-            required_files={"jfile", "momfile", "posfile", "inpsd.dat", "M(T)"},
-            optional_files={"README.md"},
+            "UppASD/MC",
+            required_files={"jfile", "momfile", "posfile", "inpsd.dat", "output.csv"},
         )
     return data
 
@@ -34,32 +33,32 @@ def collect_rspt_data(base_path: Path) -> util.Collected:
     """Check structure of rspt dataset."""
     data = util.check_directory(
         base_path,
-        "rspt",
+        "RSPt",
         optional_files={"README.md"},
-        required_subdirs={"common_rspt_input", "gs_x", "gs_z", "Jij"},
+        required_subdirs={"common_input", "gs_x", "gs_z", "Jij"},
         optional_subdirs={"gs_y"},
     )
 
-    if "rspt/common_rspt_input" in data.collected_dirs:
+    if "RSPt/common_input" in data.collected_dirs:
         data += util.check_directory(
             base_path,
-            "rspt/common_rspt_input",
+            "RSPt/common_input",
             required_files={"atomdens", "kmap", "spts", "symcof", "symt.inp"},
         )
 
     for dir_ in "xyz":
-        if f"rspt/gs_{dir_}" in data.collected_dirs:
+        if f"RSPt/gs_{dir_}" in data.collected_dirs:
             data += util.check_directory(
                 base_path,
-                f"rspt/gs_{dir_}",
+                f"RSPt/gs_{dir_}",
                 required_files={"data", "out_last"},
                 required_files_from_choices=[{"hist", "out_MF"}],
             )
 
-    if "rspt/Jij" in data.collected_dirs:
+    if "RSPt/Jij" in data.collected_dirs:
         data += util.check_directory(
             base_path,
-            "rspt/Jij",
+            "RSPt/Jij",
             required_files={"data"},
             required_file_pairs=[("green.inp-", "out-")],
         )
@@ -110,6 +109,13 @@ def check_intrinsic_properties(filename: Path) -> bool:
     return file_ok
 
 
+def check_mc_output(filename: Path) -> bool:
+    """Check that output.csv contains the required entities."""
+    logger.warning("Checking contet of 'output.csv' not yet implemented!")
+    # open question: names/types of entities
+    return True
+
+
 def collect_dataset(base_path: Path) -> util.Collected:
     """Return False if any of the required files is not present."""
     base_path = base_path.resolve()
@@ -125,18 +131,23 @@ def collect_dataset(base_path: Path) -> util.Collected:
         ".",
         required_files={"intrinsic_properties.yaml", "structure.cif"},
         optional_files={"README.md"},
-        required_subdirs={"rspt", "uppasd"},
+        required_subdirs={"RSPt", "UppASD"},
     )
 
-    if "rspt" in dataset.collected_dirs:
+    if "RSPt" in dataset.collected_dirs:
         dataset += collect_rspt_data(base_path)
 
-    if "uppasd" in dataset.collected_dirs:
+    if "UppASD" in dataset.collected_dirs:
         dataset += collect_uppasd_data(base_path)
 
     if (
         "intrinsic_properties.yaml" in dataset.collected_files
         and not check_intrinsic_properties(base_path / "intrinsic_properties.yaml")
+    ):
+        dataset.tree_ok = False
+
+    if "UppASD/MC/output.csv" in dataset.collected_files and not check_mc_output(
+        "UppASD/MC/output.csv"
     ):
         dataset.tree_ok = False
 
