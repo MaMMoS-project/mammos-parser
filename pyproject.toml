@@ -25,7 +25,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  "mammos-entity @ git+https://github.com/mammos-project/mammos-entity.git",  # TODO update after next release of mammos-entity
+  "mammos-entity>=0.10.0",
   "rich",
 ]
 
