@@ -130,7 +130,7 @@ def collect_dataset(base_path: Path) -> util.Collected:
         base_path,
         ".",
         required_files={"intrinsic_properties.yaml", "structure.cif"},
-        optional_files={"README.md"},
+        optional_files={"README.md", "DOSCAR"},
         required_subdirs={"RSPt", "UppASD"},
     )
 
