@@ -45,6 +45,12 @@ def test_all_files_present(tmp_path: Path):
         MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
         Tc=me.Tc(1000, "K"),
     )
+    me.io.entities_to_file(
+        tmp_path / "UppASD/MC/output.csv",
+        T=me.T([1, 10, 100], "K"),
+        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
+        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
+    )
     assert uppsala.collect_dataset(tmp_path)
 
     # second calculation mode in addition: not allowed
