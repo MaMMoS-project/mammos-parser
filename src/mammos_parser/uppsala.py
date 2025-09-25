@@ -24,7 +24,14 @@ def collect_uppasd_data(base_path: Path) -> util.Collected:
         data += util.check_directory(
             base_path,
             "UppASD/MC",
-            required_files={"jfile", "momfile", "posfile", "inpsd.dat", "output.csv"},
+            required_files={
+                "jfile",
+                "momfile",
+                "posfile",
+                "inpsd.dat",
+                "output.csv",
+                "M(T)",
+            },
         )
     return data
 
