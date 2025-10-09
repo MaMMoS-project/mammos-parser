@@ -31,7 +31,7 @@ def main():
     parser_uppsala.add_argument(
         "mode",
         help="operation mode",
-        choices=["validate-dataset"],
+        choices=["validate-dataset", "generate-derived-files"],
     )
     parser_uppsala.add_argument(
         "path", help="base directory containing the dataset", type=Path
@@ -56,3 +56,6 @@ def main():
         path = args.path
         if not uppsala.validate_dataset(path):
             sys.exit(1)
+    elif args.mode == "generate-derived-files":
+        path = args.path
+        uppsala.generate_derived_files(path)
