@@ -66,7 +66,7 @@ def collect_rspt_data(base_path: Path) -> util.Collected:
         data += util.check_directory(
             base_path,
             "RSPt/Jij",
-            required_files={"data"},
+            required_files={"data", "out_last"},
             required_file_pairs=[("green.inp-", "out-")],
         )
 

@@ -27,10 +27,10 @@ def test_all_files_present(tmp_path: Path):
         for name in ["data", "hist", "out_last"]:
             make_file(tmp_path / "RSPt" / dir_name / name)
 
-    for name in ["green.inp-1", "out-1", "data"]:
+    for name in ["green.inp-1", "out-1", "data", "out_last"]:
         make_file(tmp_path / "RSPt" / "Jij" / name)
 
-    for name in ["jfile", "momfile", "posfile", "inpsd.dat", "output.csv"]:
+    for name in ["jfile", "momfile", "posfile", "inpsd.dat", "output.csv", "M(T)"]:
         make_file(tmp_path / "UppASD" / "MC" / name)
 
     # all required files, first calculation mode
