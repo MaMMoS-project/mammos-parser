@@ -1,6 +1,15 @@
 # mammos-parser
 
-`mammos-parser` provides ...
+`mammos-parser` provides a CLI to validate datasets from Uppsala.
+
+Use it as follows:
+```console
+$ mammos-parser validate-uppsala path/do/dataset
+INFO    Reading uppsala dataset '...'
+...
+```
+
+To see all available options run `mammos-parser -h`.
 
 | Description   | Badge                                                                                                                                                                                    |
 |---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
