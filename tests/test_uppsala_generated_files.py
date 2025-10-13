@@ -1,13 +1,14 @@
 from pathlib import Path
 from textwrap import dedent
 
+import mammos_units as u
 import pytest
 from pytest import approx
 
 from mammos_parser.uppsala import collect_dataset, create_files
 
 
-def test_unit_cell_volume_AA(tmp_path: Path) -> None:
+def test_unit_cell_volume(tmp_path: Path) -> None:
     (tmp_path / "out_last").write_text(
         dedent(
             """
@@ -35,13 +36,13 @@ def test_unit_cell_volume_AA(tmp_path: Path) -> None:
         )
     )
 
-    vol_AA = 700.413751849785 / 1.8897259**3
-    assert create_files.unit_cell_volume_AA(tmp_path / "out_last") == pytest.approx(
-        vol_AA
+    ref_vol = (700.413751849785 * u.constants.a0**3).to("m3")
+    assert create_files.unit_cell_volume(tmp_path / "out_last").value == pytest.approx(
+        ref_vol.value
     )
 
 
-def test_compute_polarisation_single(tmp_path: Path) -> None:
+def test_compute_magnetization_single(tmp_path: Path) -> None:
     (tmp_path / "out_last").write_text(
         dedent(
             """
@@ -74,15 +75,15 @@ def test_compute_polarisation_single(tmp_path: Path) -> None:
         )
     )
 
-    vol_AA = 700.413751849785 / 1.8897259**3
-    ref_Js = 1.598663e-01 / vol_AA * 11.654  # Tesla
+    unit_cell_volume = 700.413751849785 * u.constants.a0**3
+    ref_Ms = (1.598663e-01 * u.mu_B / unit_cell_volume).to("A/m")
 
-    Js = create_files.compute_spontaneous_polarization(tmp_path / "out_last")
-    assert Js.value == approx(ref_Js, rel=1e-6)
-    assert Js.ontology_label == "SpontaneousMagneticPolarisation"
+    Ms = create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
+    assert Ms.value == approx(ref_Ms.value, rel=1e-6)
+    assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
-def test_compute_polarisation_multiple(tmp_path: Path) -> None:
+def test_compute_magnetization_multiple(tmp_path: Path) -> None:
     (tmp_path / "out_last").write_text(
         dedent(
             """
@@ -114,12 +115,14 @@ def test_compute_polarisation_multiple(tmp_path: Path) -> None:
         )
     )
 
-    vol_AA = 700.413751849785 / 1.8897259**3
-    ref_Js = (1.598663e-01 - 9.608900e-03 + 1.605796e-01) / vol_AA * 11.654  # Tesla
+    unit_cell_volume = 700.413751849785 * u.constants.a0**3
+    ref_Ms = (
+        (1.598663e-01 - 9.608900e-03 + 1.605796e-01) * u.mu_B / unit_cell_volume
+    ).to("A/m")
 
-    Js = create_files.compute_spontaneous_polarization(tmp_path / "out_last")
-    assert Js.value == approx(ref_Js, rel=1e-6)
-    assert Js.ontology_label == "SpontaneousMagneticPolarisation"
+    Ms = create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
+    assert Ms.value == approx(ref_Ms.value, rel=1e-6)
+    assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
 def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
@@ -135,7 +138,7 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
         )
     )
 
-    vol_AA = 700.413751849785 / 1.8897259**3
+    unit_cell_volume = 700.413751849785 * u.constants.a0**3
 
     (tmp_path / "RSPt/gs_x/hist").write_text(
         dedent(
@@ -176,9 +179,9 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
 
     Ex = -17483.270409502
     Ez = -17483.270416975
-    ref_MAE = (Ex - Ez) / vol_AA * 2179874  # MJ/m*3
+    ref_MAE = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
     MAE = create_files.compute_MAE(dataset)
-    assert MAE.value == approx(ref_MAE)
+    assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
@@ -207,9 +210,9 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
 
     Ey = -17483.270400000
     assert Ex - Ez < Ey - Ez  # ensure yz is larger to confirm we use it
-    ref_MAE = (Ey - Ez) / vol_AA * 2179874  # MJ/m*3
+    ref_MAE = ((Ey - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
     MAE = create_files.compute_MAE(dataset)
-    assert MAE.value == approx(ref_MAE)
+    assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
@@ -227,7 +230,7 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
         )
     )
 
-    vol_AA = 700.413751849785 / 1.8897259**3
+    unit_cell_volume = 700.413751849785 * u.constants.a0**3
 
     (tmp_path / "RSPt/gs_x/out_MF").write_text(
         dedent(
@@ -267,9 +270,9 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
 
     ev_x = -96.5273077386128
     ev_z = -96.5273735366564
-    ref_MAE = (ev_x - ev_z) / vol_AA * 2179874  # MJ/m*3
+    ref_MAE = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
     MAE = create_files.compute_MAE(dataset)
-    assert MAE.value == approx(ref_MAE)
+    assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
@@ -291,8 +294,8 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
 
     ev_y = -96.5273067048896
     assert ev_x - ev_z < ev_y - ev_z  # ensure yz is larger to confirm we use it
-    ref_MAE = (ev_y - ev_z) / vol_AA * 2179874  # MJ/m*3
+    ref_MAE = ((ev_y - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
     MAE = create_files.compute_MAE(dataset)
-    assert MAE.value == approx(ref_MAE)
+    assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"

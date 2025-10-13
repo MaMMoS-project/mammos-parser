@@ -17,17 +17,16 @@ def _generate_MC_results_csv():
     pass
 
 
-def unit_cell_volume_AA(file_path: Path) -> float:
+def unit_cell_volume(file_path: Path) -> u.Quantity[u.m**3]:
     """Read unit cell volume from out_last file."""
     unit_cell_volume_au = float(
         util.find_in_file(file_path, r"unit cell volume:[ ]*([0-9.]+)")
     )
     logger.debug("Unit cell volume (a.u.): %s", unit_cell_volume_au)
-    a0 = 0.529177210544  # in AA
-    return unit_cell_volume_au * a0**3
+    return (unit_cell_volume_au * u.constants.a0**3).to("m3")
 
 
-def compute_spontaneous_polarization(file_path: Path) -> me.Entity:
+def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
     """Compute spontaneous magnetization from RSPt out_last file."""
     # Use a dictionary to collect moments and directions because results for the same
     # atom+orbital information (used as key in the dict) can appear multiple times in
@@ -53,23 +52,17 @@ def compute_spontaneous_polarization(file_path: Path) -> me.Entity:
                 directions[key] = direction
                 print(key, direction)
 
-    total_moment = 0
+    total_moment = 0 * u.mu_B
     for key, moment in moments.items():
         print(key, moment, directions[key])
         # Cartesian directions of the moment, orientation predominantly along one axis,
         # we are only interested in the sign.
         direction = [dir_ for dir_ in directions[key] if abs(dir_) > 0.9][0]
+        assert len([dir_ for dir_ in directions[key] if abs(dir_) > 0.9]) == 1
         print(moment, direction)
-        total_moment += moment * round(direction)
+        total_moment += moment * round(direction) * u.mu_B
 
-    MAGIC_NUMBER = 11.654
-
-    magnetic_polarization = (
-        total_moment / unit_cell_volume_AA(file_path) * MAGIC_NUMBER * u.Tesla
-    )
-    print(magnetic_polarization)
-
-    return me.Js(magnetic_polarization)
+    return me.Ms((total_moment / unit_cell_volume(file_path)).to("A/m"))
 
 
 def compute_MAE(dataset: util.Collected) -> me.Entity:
@@ -120,28 +113,26 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
         .replace(",", "")
     )
 
-    delta_e = max(value_x - value_z, value_y - value_z)
+    delta_e = max(value_x - value_z, value_y - value_z) * u.Ry
+    vol = unit_cell_volume(dataset.root_dir / "RSPt/gs_x/out_last")
 
-    MAGIC_NUMBER = 2179874
-
-    unit_cell_volume = unit_cell_volume_AA(dataset.root_dir / "RSPt/gs_x/out_last")
     return me.Entity(
         "MagnetocrystallineAnisotropyEnergy",
-        delta_e / unit_cell_volume * MAGIC_NUMBER,
-        "MJ/m^3",
+        (delta_e / vol).to("MJ/m3"),
     )
 
 
 def _compute_Tc(dataset: util.Collected) -> me.Entity:
-    raise NotImplementedError()
+    return me.Tc(0)
+    # raise NotImplementedError()
 
 
 def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     """Collect intrinsic properties."""
     data = collect_dataset(base_path)
 
-    Js = compute_spontaneous_polarization(data.root_dir / "RSPt/gs_x/out_last")
-    Ms = me.Ms(Js.q.to("A/m", equivalencies=u.magnetic_flux_field()))
+    Ms = compute_spontaneous_magnetization(data.root_dir / "RSPt/gs_x/out_last")
+    Js = me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field()))
     MAE = compute_MAE(data)
     Tc = _compute_Tc(data)
 
