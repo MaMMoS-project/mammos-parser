@@ -37,9 +37,9 @@ def test_unit_cell_volume(tmp_path: Path) -> None:
     )
 
     ref_vol = (700.413751849785 * u.constants.a0**3).to("m3")
-    assert create_files.unit_cell_volume(tmp_path / "out_last").value == pytest.approx(
-        ref_vol.value
-    )
+    unit_cell_volume = create_files.unit_cell_volume(tmp_path / "out_last")
+    assert unit_cell_volume.value == pytest.approx(ref_vol.value)
+    assert unit_cell_volume.unit == "m3"
 
 
 def test_compute_magnetization_single(tmp_path: Path) -> None:
@@ -80,6 +80,7 @@ def test_compute_magnetization_single(tmp_path: Path) -> None:
 
     Ms = create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
     assert Ms.value == approx(ref_Ms.value, rel=1e-6)
+    assert Ms.unit == "A/m"
     assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
@@ -122,6 +123,7 @@ def test_compute_magnetization_multiple(tmp_path: Path) -> None:
 
     Ms = create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
     assert Ms.value == approx(ref_Ms.value, rel=1e-6)
+    assert Ms.unit == "A/m"
     assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
