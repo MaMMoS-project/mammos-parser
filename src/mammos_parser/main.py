@@ -54,5 +54,5 @@ def main():
 
     if args.mode == "validate-dataset":
         path = args.path
-        if not uppsala.collect_dataset(path):
+        if not uppsala.validate_dataset(path):
             sys.exit(1)

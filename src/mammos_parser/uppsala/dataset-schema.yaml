@@ -1,0 +1,48 @@
+DOSCAR: {type: file, required: false}
+README.md: {type: file, required: false}
+intrinsic_properties.yaml: {type: file}
+structure.cif: {type: file}
+RSPt:
+    type: directory
+    schema:
+        README.md: {type: file, required: false}
+        common_input:
+            type: directory
+            schema:
+                atomdens: {type: file}
+                kmap: {type: file}
+                spts: {type: file}
+                symcof: {type: file}
+                symt.inp: {type: file}
+        gs_x: &gs_dir
+            type: directory
+            schema:
+                data: {type: file}
+                out_last: {type: file}
+                hist: {type: file, excludes: out_MF}
+                out_MF: {type: file, excludes: hist}
+        gs_y: {<<: *gs_dir, required: false}
+        gs_z: *gs_dir
+        Jij:
+            type: directory
+            keysrules:
+                regex: '^(data|out_last|green.inp-.+|out-.+)$'
+            valuesrules:
+                type: file
+                pair_exists: ['green.inp-', 'out-']
+UppASD:
+    type: directory
+    schema:
+        MC_1: &MC_dir
+            type: directory
+            schema:
+                jfile: {type: file}
+                momfile: {type: file}
+                posfile: {type: file}
+                inpsd.dat: {type: file}
+                output.csv: {type: file}
+                M(T): {type: file}
+                DOSCAR: {type: file, required: false}
+        README.md: {type: file, required: false}
+    keysrules: {regex: '^(README.md|MC_\d+)$'}
+    valuesrules: {<<: *MC_dir, required: false}
