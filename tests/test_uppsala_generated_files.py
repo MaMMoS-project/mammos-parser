@@ -218,6 +218,36 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
+    # Add y with smaller value
+    (tmp_path / "RSPt/gs_y/hist").write_text(
+        dedent(
+            """
+            History
+                Start runs ...
+            Iter   <f**2>   (<fe**2>)         Moment                          E
+            e    0 1.21E-03 ( 1.02E+00)     7.64784888        -17,447.186 756 597
+            @      700.413751 -17447.1867565976
+
+            ...
+
+            Iter   <f**2>   (<fe**2>)         Moment                          E
+            e   28 7.82E-14 ( 7.59E-11)     7.25741013        -17,483.270 500 000
+            @      700.413751 -17483.2704095028
+            ...
+            """
+        )
+    )
+
+    dataset = collect_dataset(tmp_path)
+
+    Ey = -17483.270500000
+    assert Ex - Ez > Ey - Ez  # ensure xz is larger to confirm we use it
+    ref_MAE = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
+    MAE = create_files.compute_MAE(dataset)
+    assert MAE.value == approx(ref_MAE.value)
+    assert MAE.unit == "MJ/m^3"
+    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+
 
 def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
     (tmp_path / "RSPt/gs_x/").mkdir(parents=True)
@@ -285,7 +315,7 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
             """
                     N   =  69.9999999
 
-            Eigenvalue sum: -96.5273067048896
+            Eigenvalue sum: -96.5273000000000
             fermi energy =  9.0250712640877E-01
                     D(ef) =  7.1081688783164E+01
             """
@@ -294,9 +324,32 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
 
     dataset = collect_dataset(tmp_path)
 
-    ev_y = -96.5273067048896
+    ev_y = -96.5273000000000
     assert ev_x - ev_z < ev_y - ev_z  # ensure yz is larger to confirm we use it
     ref_MAE = ((ev_y - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
+    MAE = create_files.compute_MAE(dataset)
+    assert MAE.value == approx(ref_MAE.value)
+    assert MAE.unit == "MJ/m^3"
+    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+
+    # Add y with smaller value
+    (tmp_path / "RSPt/gs_y/out_MF").write_text(
+        dedent(
+            """
+                    N   =  69.9999999
+
+            Eigenvalue sum: -96.5274000000000
+            fermi energy =  9.0250712640877E-01
+                    D(ef) =  7.1081688783164E+01
+            """
+        )
+    )
+
+    dataset = collect_dataset(tmp_path)
+
+    ev_y = -96.5274000000000
+    assert ev_x - ev_z > ev_y - ev_z  # ensure xz is larger to confirm we use it
+    ref_MAE = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
     MAE = create_files.compute_MAE(dataset)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
