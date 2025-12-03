@@ -74,12 +74,14 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
         # we need to extract the last number (energy) -17...
         value_expr = r"\ne.*?(-?[0-9,]+\.[0-9 ]+)\n"
         file_ = "hist"
+        comment = "MAE from total energy"
     elif "RSPt/gs_x/out_MF" in dataset.collected_files:
         # Force theorem
         # example line:
         # Eigenvalue sum: -93.5684396400865
         value_expr = r"Eigenvalue sum:\s*([-0-9.]+)"
         file_ = "out_MF"
+        comment = "MAE from force theorem"
     else:
         raise RuntimeError(
             "Did not find a file to extract MAE (gs_x/hist and gs_x/out_MF missing)"
@@ -119,6 +121,7 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
     return me.Entity(
         "MagnetocrystallineAnisotropyEnergy",
         (delta_e / vol).to("MJ/m3"),
+        comment=comment,
     )
 
 
