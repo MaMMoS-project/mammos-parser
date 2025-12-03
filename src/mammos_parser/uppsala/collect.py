@@ -10,7 +10,7 @@ from pathlib import Path
 import mammos_entity as me
 import ontopy
 
-from . import util
+from mammos_parser import util
 
 logger = getLogger(__name__)
 
