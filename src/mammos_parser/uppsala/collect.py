@@ -127,7 +127,7 @@ def check_intrinsic_properties(filename: Path) -> bool:
                 )
                 file_ok = False
 
-    if other_entities := set(data.__dict__) - {"Js", "Ms", "MAE", "Tc"}:
+    if other_entities := set(data.__dict__) - {"Js", "Ms", "MAE", "Tc", "description"}:
         logger.error("Found unexpected elements: %s", sorted(other_entities))
         file_ok = False
 
