@@ -8,6 +8,7 @@ from logging import getLogger
 from pathlib import Path
 
 import mammos_entity as me
+import mammos_units as u
 import ontopy
 
 from mammos_parser import util
@@ -97,6 +98,7 @@ def check_intrinsic_properties(filename: Path) -> bool:
     file_ok = True
     for name, label in [
         ("Js", "SpontaneousMagneticPolarisation"),
+        ("Ms", "SpontaneousMagnetization"),
         ("MAE", "MagnetocrystallineAnisotropyEnergy"),
         ("Tc", "CurieTemperature"),
     ]:
@@ -114,7 +116,18 @@ def check_intrinsic_properties(filename: Path) -> bool:
         else:
             logger.debug("Found %s of type %s.", name, label)
 
-    if other_entities := set(data.__dict__) - {"Js", "MAE", "Tc"}:
+    if hasattr(data, "Ms") and hasattr(data, "Js"):
+        with u.set_enabled_equivalencies(u.magnetic_flux_field()):
+            if data.Ms.q.to(data.Js.unit) != data.Js.q:
+                logger.error(
+                    "Values for Ms and Js do not match:\nJs='%s'\nMs='%s' ('%s')",
+                    data.Js,
+                    data.Ms,
+                    data.Ms.q.to(data.Js.unit),
+                )
+                file_ok = False
+
+    if other_entities := set(data.__dict__) - {"Js", "Ms", "MAE", "Tc"}:
         logger.error("Found unexpected elements: %s", sorted(other_entities))
         file_ok = False
 
