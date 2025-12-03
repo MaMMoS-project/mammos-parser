@@ -136,7 +136,7 @@ def check_intrinsic_properties(filename: Path) -> bool:
 
 def check_mc_output(filename: Path) -> bool:
     """Check that intrinsic_properties.yaml contains the required entities."""
-    logger.info("Checking content of MC 'output.csv'")
+    logger.info(f"Checking content of '{filename.parent}/output.csv'")
     try:
         data = me.io.entities_from_file(filename)
     except RuntimeError as e:
@@ -208,6 +208,10 @@ def collect_dataset(base_path: Path) -> util.Collected:
 
     if "UppASD/MC_1/output.csv" in dataset.collected_files and not check_mc_output(
         base_path / "UppASD/MC_1/output.csv"
+    ):
+        dataset.tree_ok = False
+    if "UppASD/MC_2/output.csv" in dataset.collected_files and not check_mc_output(
+        base_path / "UppASD/MC_2/output.csv"
     ):
         dataset.tree_ok = False
 
