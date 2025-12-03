@@ -24,8 +24,18 @@ def main():
         "--quiet", "-q", help="show only wanings and errors", action="store_true"
     )
 
-    parser.add_argument("mode", help="operation mode", choices=["validate-uppsala"])
-    parser.add_argument("path", help="base directory containing the dataset", type=Path)
+    subparsers = parser.add_subparsers()
+
+    parser_uppsala = subparsers.add_parser("uppsala-data")
+
+    parser_uppsala.add_argument(
+        "mode",
+        help="operation mode",
+        choices=["validate-dataset"],
+    )
+    parser_uppsala.add_argument(
+        "path", help="base directory containing the dataset", type=Path
+    )
 
     args = parser.parse_args()
 
@@ -42,7 +52,7 @@ def main():
         handlers=[RichHandler(show_time=False, show_path=False)],
     )
 
-    if args.mode == "validate-uppsala":
+    if args.mode == "validate-dataset":
         path = args.path
         if not uppsala.collect_dataset(path):
             sys.exit(1)

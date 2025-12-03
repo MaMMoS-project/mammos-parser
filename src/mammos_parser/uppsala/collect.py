@@ -8,9 +8,10 @@ from logging import getLogger
 from pathlib import Path
 
 import mammos_entity as me
+import mammos_units as u
 import ontopy
 
-from . import util
+from mammos_parser import util
 
 logger = getLogger(__name__)
 
@@ -18,21 +19,26 @@ logger = getLogger(__name__)
 def collect_uppasd_data(base_path: Path) -> util.Collected:
     """Check structure of uppasd dataset."""
     data = util.check_directory(
-        base_path, "UppASD", optional_files={"README.md"}, required_subdirs={"MC"}
+        base_path,
+        "UppASD",
+        optional_files={"README.md"},
+        required_subdirs={"MC_1"},
+        optional_subdirs={"MC_2"},
     )
-    if "UppASD/MC" in data.collected_dirs:
-        data += util.check_directory(
-            base_path,
-            "UppASD/MC",
-            required_files={
-                "jfile",
-                "momfile",
-                "posfile",
-                "inpsd.dat",
-                "output.csv",
-                "M(T)",
-            },
-        )
+    for index in [1, 2]:
+        if f"UppASD/MC_{index}" in data.collected_dirs:
+            data += util.check_directory(
+                base_path,
+                f"UppASD/MC_{index}",
+                required_files={
+                    "jfile",
+                    "momfile",
+                    "posfile",
+                    "inpsd.dat",
+                    "output.csv",
+                    "M(T)",
+                },
+            )
     return data
 
 
@@ -92,6 +98,7 @@ def check_intrinsic_properties(filename: Path) -> bool:
     file_ok = True
     for name, label in [
         ("Js", "SpontaneousMagneticPolarisation"),
+        ("Ms", "SpontaneousMagnetization"),
         ("MAE", "MagnetocrystallineAnisotropyEnergy"),
         ("Tc", "CurieTemperature"),
     ]:
@@ -109,7 +116,18 @@ def check_intrinsic_properties(filename: Path) -> bool:
         else:
             logger.debug("Found %s of type %s.", name, label)
 
-    if other_entities := set(data.__dict__) - {"Js", "MAE", "Tc"}:
+    if hasattr(data, "Ms") and hasattr(data, "Js"):
+        with u.set_enabled_equivalencies(u.magnetic_flux_field()):
+            if data.Ms.q.to(data.Js.unit) != data.Js.q:
+                logger.error(
+                    "Values for Ms and Js do not match:\nJs='%s'\nMs='%s' ('%s')",
+                    data.Js,
+                    data.Ms,
+                    data.Ms.q.to(data.Js.unit),
+                )
+                file_ok = False
+
+    if other_entities := set(data.__dict__) - {"Js", "Ms", "MAE", "Tc", "description"}:
         logger.error("Found unexpected elements: %s", sorted(other_entities))
         file_ok = False
 
@@ -118,7 +136,7 @@ def check_intrinsic_properties(filename: Path) -> bool:
 
 def check_mc_output(filename: Path) -> bool:
     """Check that intrinsic_properties.yaml contains the required entities."""
-    logger.info("Checking content of 'MC/output.csv'")
+    logger.info(f"Checking content of '{filename.parent}/output.csv'")
     try:
         data = me.io.entities_from_file(filename)
     except RuntimeError as e:
@@ -188,8 +206,12 @@ def collect_dataset(base_path: Path) -> util.Collected:
     ):
         dataset.tree_ok = False
 
-    if "UppASD/MC/output.csv" in dataset.collected_files and not check_mc_output(
-        base_path / "UppASD/MC/output.csv"
+    if "UppASD/MC_1/output.csv" in dataset.collected_files and not check_mc_output(
+        base_path / "UppASD/MC_1/output.csv"
+    ):
+        dataset.tree_ok = False
+    if "UppASD/MC_2/output.csv" in dataset.collected_files and not check_mc_output(
+        base_path / "UppASD/MC_2/output.csv"
     ):
         dataset.tree_ok = False
 
