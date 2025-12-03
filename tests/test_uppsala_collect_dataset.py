@@ -31,7 +31,7 @@ def test_all_files_present(tmp_path: Path):
         make_file(tmp_path / "RSPt" / "Jij" / name)
 
     for name in ["jfile", "momfile", "posfile", "inpsd.dat", "output.csv", "M(T)"]:
-        make_file(tmp_path / "UppASD" / "MC" / name)
+        make_file(tmp_path / "UppASD" / "MC_1" / name)
 
     # all required files, first calculation mode
 
@@ -46,7 +46,7 @@ def test_all_files_present(tmp_path: Path):
         Tc=me.Tc(1000, "K"),
     )
     me.io.entities_to_file(
-        tmp_path / "UppASD/MC/output.csv",
+        tmp_path / "UppASD/MC_1/output.csv",
         T=me.T([1, 10, 100], "K"),
         Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
         Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),

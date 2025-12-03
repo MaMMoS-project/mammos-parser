@@ -18,21 +18,26 @@ logger = getLogger(__name__)
 def collect_uppasd_data(base_path: Path) -> util.Collected:
     """Check structure of uppasd dataset."""
     data = util.check_directory(
-        base_path, "UppASD", optional_files={"README.md"}, required_subdirs={"MC"}
+        base_path,
+        "UppASD",
+        optional_files={"README.md"},
+        required_subdirs={"MC_1"},
+        optional_subdirs={"MC_2"},
     )
-    if "UppASD/MC" in data.collected_dirs:
-        data += util.check_directory(
-            base_path,
-            "UppASD/MC",
-            required_files={
-                "jfile",
-                "momfile",
-                "posfile",
-                "inpsd.dat",
-                "output.csv",
-                "M(T)",
-            },
-        )
+    for index in [1, 2]:
+        if f"UppASD/MC_{index}" in data.collected_dirs:
+            data += util.check_directory(
+                base_path,
+                f"UppASD/MC_{index}",
+                required_files={
+                    "jfile",
+                    "momfile",
+                    "posfile",
+                    "inpsd.dat",
+                    "output.csv",
+                    "M(T)",
+                },
+            )
     return data
 
 
@@ -118,7 +123,7 @@ def check_intrinsic_properties(filename: Path) -> bool:
 
 def check_mc_output(filename: Path) -> bool:
     """Check that intrinsic_properties.yaml contains the required entities."""
-    logger.info("Checking content of 'MC/output.csv'")
+    logger.info("Checking content of MC 'output.csv'")
     try:
         data = me.io.entities_from_file(filename)
     except RuntimeError as e:
@@ -188,8 +193,8 @@ def collect_dataset(base_path: Path) -> util.Collected:
     ):
         dataset.tree_ok = False
 
-    if "UppASD/MC/output.csv" in dataset.collected_files and not check_mc_output(
-        base_path / "UppASD/MC/output.csv"
+    if "UppASD/MC_1/output.csv" in dataset.collected_files and not check_mc_output(
+        base_path / "UppASD/MC_1/output.csv"
     ):
         dataset.tree_ok = False
 
