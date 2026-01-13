@@ -25,6 +25,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+  "cerberus",
   "mammos-entity>=0.10.0",
   "rich",
 ]
