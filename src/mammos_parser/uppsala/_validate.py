@@ -1,11 +1,10 @@
 import collections
+import importlib
 from logging import getLogger
 from pathlib import Path
 
 import cerberus
 import mammos_entity as me
-import mammos_units as u
-import ontopy
 import yaml
 
 logger = getLogger(__name__)
@@ -16,7 +15,7 @@ DERIVED_FILES = [
 ]
 
 
-def load_schema(path: Path | None = None):
+def load_schema(path: Path | None = None, index: int = 0) -> dict:
     """Load schema for dataset.
 
     If no path is provided the bundled schema is returned.
@@ -24,7 +23,7 @@ def load_schema(path: Path | None = None):
     if path is None:
         path = Path(__file__).parent / "dataset-schema.yaml"
     with path.open() as f:
-        return yaml.load(f, Loader=yaml.SafeLoader)
+        return list(yaml.safe_load_all(f))[index]
 
 
 def tree_to_dict(root_path: Path) -> dict:
@@ -125,12 +124,6 @@ class FileSystemErrorHandler(cerberus.errors.BasicErrorHandler):
 
 def report_errors(errors: dict, root: str):
     """Print all errors in cerberus error dict."""
-    # TODO this could probably be replaced with a custom error handler
-    # The format of the BasicErrorHandler is:
-    # > The keys refer to the document’s ones and the values are lists containing error
-    # > messages. Errors of nested fields are kept in a dictionary as last item of these
-    # > lists.
-    # https://docs.python-cerberus.org/errors.html#error-handlers
     for key, vals in errors.items():
         if isinstance(vals[-1], dict):
             for val in vals[:-1]:
@@ -141,101 +134,73 @@ def report_errors(errors: dict, root: str):
                 logger.error(f"'{root}/{key}': {val}")
 
 
-def check_intrinsic_properties(filename: Path) -> bool:
-    """Check that intrinsic_properties.yaml contains the required entities."""
-    logger.info("Checking content of 'intrinsic_properties.yaml'.")
+class ContentValidationError:
+    def __init__(self, path, message):
+        self.path = path
+        self.message = message
+
+    def __str__(self):
+        return f"'{self.path}': {self.message}"
+
+
+def type_from_string(type_name: str):
+    # type_name like "datetime.datetime" or "collections.abc.Mapping"
+    module_name, _, attr = type_name.rpartition(".")
+    if not module_name:
+        raise ValueError("Use a fully-qualified name like 'datetime.datetime'")
+    module = importlib.import_module(module_name)
+    return getattr(module, attr)
+
+
+def validate_content(filepath, schema) -> tuple[bool, list[ContentValidationError]]:
+    if not filepath.is_file():
+        return False, []
     try:
-        data = me.io.entities_from_file(filename)
-    except RuntimeError as e:
-        logger.error("Validation of intrinsic_properties.yaml failed: %s", e)
-        return False
-    except ontopy.utils.NoSuchLabelError as e:
-        logger.error(
-            "Validation of intrinsic_properties.yaml failed:"
-            " entity not found in the ontology: %s",
-            e,
-        )
-        return False
+        obj = me.io.entities_from_file(filepath)
+    except Exception as e:
+        return False, [ContentValidationError(filepath, str(e))]
 
-    file_ok = True
-    for name, label in [
-        ("Js", "SpontaneousMagneticPolarisation"),
-        ("Ms", "SpontaneousMagnetization"),
-        ("MAE", "MagnetocrystallineAnisotropyEnergy"),
-        ("Tc", "CurieTemperature"),
-    ]:
-        if not hasattr(data, name):
-            logger.error("Did not find %s.", name)
-            file_ok = False
-        elif (found_label := getattr(data, name).ontology_label) != label:
-            logger.error(
-                "Element %s has the wrong type, expected '%s', got '%s'",
-                name,
-                label,
-                found_label,
+    errors = []
+    seen = {"description"}
+    for name, spec in schema.items():
+        if not hasattr(obj, name):
+            errors.append(
+                ContentValidationError(filepath, f"missing property '{name}'")
             )
-            file_ok = False
-        else:
-            logger.debug("Found %s of type %s.", name, label)
+            continue
 
-    if hasattr(data, "Ms") and hasattr(data, "Js"):
-        with u.set_enabled_equivalencies(u.magnetic_flux_field()):
-            if data.Ms.q.to(data.Js.unit) != data.Js.q:
-                logger.error(
-                    "Values for Ms and Js do not match:\nJs='%s'\nMs='%s' ('%s')",
-                    data.Js,
-                    data.Ms,
-                    data.Ms.q.to(data.Js.unit),
+        value = getattr(obj, name)
+        if not isinstance(value, type_from_string(spec["type"])):
+            vt = type(value)
+            errors.append(
+                ContentValidationError(
+                    filepath,
+                    f"property '{name}' has type '{vt.__module__}.{vt.__name__}', "
+                    f"expected '{spec['type']}'",
                 )
-                file_ok = False
-
-    if other_entities := set(data.__dict__) - {"Js", "Ms", "MAE", "Tc", "description"}:
-        logger.error("Found unexpected elements: %s", sorted(other_entities))
-        file_ok = False
-
-    return file_ok
-
-
-def check_mc_output(filename: Path) -> bool:
-    """Check that intrinsic_properties.yaml contains the required entities."""
-    logger.info(f"Checking content of '{filename.parent}/output.csv'")
-    try:
-        data = me.io.entities_from_file(filename)
-    except RuntimeError as e:
-        logger.error("Validation of output.csv failed: %s", e)
-        return False
-    except ontopy.utils.NoSuchLabelError as e:
-        logger.error(
-            "Validation of output.csv failed: entity not found in the ontology: %s",
-            e,
-        )
-        return False
-
-    file_ok = True
-    for name, label in [
-        ("T", "ThermodynamicTemperature"),
-        ("Ms", "SpontaneousMagnetization"),
-        ("Cv", "IsochoricHeatCapacity"),
-    ]:
-        if not hasattr(data, name):
-            logger.error("Did not find %s.", name)
-            file_ok = False
-        elif (found_label := getattr(data, name).ontology_label) != label:
-            logger.error(
-                "Element %s has the wrong type, expected '%s', got '%s'",
-                name,
-                label,
-                found_label,
             )
-            file_ok = False
-        else:
-            logger.debug("Found %s of type %s.", name, label)
+            continue
 
-    if other_entities := set(data.__dict__) - {"T", "Ms", "Cv"}:
-        logger.error("Found unexpected elements: %s", sorted(other_entities))
-        file_ok = False
+        if getattr(value, "ontology_label", None) != spec["ontology_label"]:
+            errors.append(
+                ContentValidationError(
+                    filepath,
+                    f"property '{name}' has label "
+                    f"'{getattr(value, 'ontology_label', None)}', "
+                    f"expected '{spec['ontology_label']}'",
+                )
+            )
 
-    return file_ok
+        seen.add(name)
+
+    extra = set(vars(obj)) - seen
+    if extra:
+        for elem in sorted(extra):
+            errors.append(
+                ContentValidationError(filepath, f"unknown property: '{elem}'")
+            )
+
+    return len(errors) == 0, errors
 
 
 def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
@@ -244,7 +209,7 @@ def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
 
     logger.info("Reading uppsala dataset '%s'", base_path)
     data_tree = tree_to_dict(base_path)
-    schema = load_schema()
+    schema = load_schema(index=1)["schema"]
 
     if not check_derived_files:
         # remove derived files from schema
@@ -261,6 +226,7 @@ def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
     error_handler = FileSystemErrorHandler(validator=validator)
     validator.error_handler = error_handler
 
+    # filesystem structure
     if not validator.validate(data_tree):
         dataset_valid = False
         report_errors(validator.errors, base_path.name)
@@ -270,15 +236,21 @@ def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
     if not check_derived_files:
         return dataset_valid
 
-    dataset_valid = (
-        check_intrinsic_properties(base_path / "intrinsic_properties.yaml")
-        and dataset_valid
+    # intrinsic_properties.yaml
+    file_valid, errors = validate_content(
+        base_path / "intrinsic_properties.yaml", load_schema(index=2)["schema"]
     )
+    dataset_valid = dataset_valid and file_valid
+    for error in errors:
+        logger.error(str(error))
 
-    for i in range(1, 4):
-        if (base_path / f"MC_{i}").exists():
-            dataset_valid = (
-                check_mc_output(base_path / f"MC_{i}" / "thermal.csv") and dataset_valid
-            )
+    # UppASD/MC_*/thermal.csv
+    for dir in base_path.glob("UppASD/MC_*"):
+        file_valid, errors = validate_content(
+            dir / "thermal.csv", load_schema(index=3)["schema"]
+        )
+        dataset_valid = dataset_valid and file_valid
+        for error in errors:
+            logger.error(str(error))
 
     return dataset_valid
