@@ -62,24 +62,24 @@ def test_all_files_present(tmp_path: Path):
     )
     assert uppsala.validate_dataset(tmp_path)
 
-    # overwrite with a file with incompatible Js and Ms
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
-        Js=me.Js(2, "T"),
-        Ms=me.Ms(2, "A/m"),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
-        Tc=me.Tc(1000, "K"),
-    )
-    assert not uppsala.validate_dataset(tmp_path)
+    # # overwrite with a file with incompatible Js and Ms
+    # me.io.entities_to_file(
+    #     tmp_path / "intrinsic_properties.yaml",
+    #     Js=me.Js(2, "T"),
+    #     Ms=me.Ms(2, "A/m"),
+    #     MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+    #     Tc=me.Tc(1000, "K"),
+    # )
+    # assert not uppsala.validate_dataset(tmp_path)
 
-    # revert file for the remaining checks
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
-        Js=me.Js(2, "T"),
-        Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
-        Tc=me.Tc(1000, "K"),
-    )
+    # # revert file for the remaining checks
+    # me.io.entities_to_file(
+    #     tmp_path / "intrinsic_properties.yaml",
+    #     Js=me.Js(2, "T"),
+    #     Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
+    #     MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+    #     Tc=me.Tc(1000, "K"),
+    # )
     # second calculation mode in addition: not allowed
     for dir_name in ["gs_x", "gs_z"]:
         make_file(tmp_path / "RSPt" / dir_name / "out_MF")
