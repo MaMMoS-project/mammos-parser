@@ -60,7 +60,7 @@ def valid_dataset():
     }
 
 
-def test_valid_dataset(tmp_path, valid_dataset):
+def test_valid_dataset_structure(tmp_path, valid_dataset):
     make_tree(tmp_path, valid_dataset)
     assert validate_dataset(tmp_path, check_derived_files=False) is True
 

@@ -11,7 +11,7 @@ def make_file(file_path: Path):
     file_path.touch()
 
 
-def test_all_files_present(tmp_path: Path):
+def test_complete_datasets(tmp_path: Path):
     # Check various different conditions under which the dataset tmp_path is valid or
     # invalid. To reduce overhead of the setup additional files are added/removed as
     # needed. The order is therefor important.
@@ -62,6 +62,84 @@ def test_all_files_present(tmp_path: Path):
     )
     assert uppsala.validate_dataset(tmp_path)
 
+    # break yaml file
+    me.io.entities_to_file(
+        tmp_path / "intrinsic_properties.yaml",
+        Js=me.Js(2, "T"),
+        Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
+        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    me.io.entities_to_file(
+        tmp_path / "intrinsic_properties.yaml",
+        Js=me.Js(2, "T"),
+        Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
+        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        T=me.Tc(100, "K").q,
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    me.io.entities_to_file(
+        tmp_path / "intrinsic_properties.yaml",
+        Js=me.Js(2, "T"),
+        Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
+        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        T=me.Tc(100, "K").value,
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    me.io.entities_to_file(
+        tmp_path / "intrinsic_properties.yaml",
+        Js=me.Js(2, "T"),
+        Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
+        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        T=me.Js(2, "T"),
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    # revert file contents for remaining checks
+    me.io.entities_to_file(
+        tmp_path / "intrinsic_properties.yaml",
+        Js=me.Js(2, "T"),
+        Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
+        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        Tc=me.Tc(1000, "K"),
+    )
+    assert uppsala.validate_dataset(tmp_path)
+
+    # break csv file
+    me.io.entities_to_file(
+        tmp_path / "UppASD/MC_1/thermal.csv",
+        T=me.T([1, 10, 100], "K"),
+        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    me.io.entities_to_file(
+        tmp_path / "UppASD/MC_1/thermal.csv",
+        T=me.T([1, 10, 100], "K"),
+        Ms=me.Ms([5e5, 6e5, 7e5], "A/m").q,
+        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    me.io.entities_to_file(
+        tmp_path / "UppASD/MC_1/thermal.csv",
+        T=me.T([1, 10, 100], "K"),
+        Ms=me.Ms([5e5, 6e5, 7e5], "A/m").value,
+        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    me.io.entities_to_file(
+        tmp_path / "UppASD/MC_1/thermal.csv",
+        T=me.T([1, 10, 100], "K"),
+        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
+        Cv=me.T([1, 10, 100]),
+    )
+    assert not uppsala.validate_dataset(tmp_path)
+    # revert file contents for remaining checks
+    me.io.entities_to_file(
+        tmp_path / "UppASD/MC_1/thermal.csv",
+        T=me.T([1, 10, 100], "K"),
+        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
+        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
+    )
+    assert uppsala.validate_dataset(tmp_path)
     # # overwrite with a file with incompatible Js and Ms
     # me.io.entities_to_file(
     #     tmp_path / "intrinsic_properties.yaml",
