@@ -203,6 +203,15 @@ def validate_content(filepath, schema) -> tuple[bool, list[ContentValidationErro
     return len(errors) == 0, errors
 
 
+def drop_derived_files(schema):
+    keys = list(schema.keys())
+    for key in keys:
+        if schema[key].get("meta", {}).get("preprocessed-output", False):
+            schema.pop(key)
+        elif "schema" in schema[key]:
+            drop_derived_files(schema[key]["schema"])
+
+
 def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
     """Validate dataset structure."""
     dataset_valid = True
@@ -212,12 +221,7 @@ def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
     schema = load_schema(index=1)["schema"]
 
     if not check_derived_files:
-        # remove derived files from schema
-        for schemapath in DERIVED_FILES:
-            modified = schema
-            for part in schemapath[:-1]:
-                modified = modified[part]
-            del modified[schemapath[-1]]
+        drop_derived_files(schema)
 
     validator = DatasetValidator(
         schema,
