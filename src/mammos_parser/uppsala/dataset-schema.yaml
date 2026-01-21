@@ -64,7 +64,7 @@ filesystem-schema:
       MC_2: {<<: *MC_dir, required: false}
       MC_3: {<<: *MC_dir, required: false}
       README.md: {type: file, required: false}
-file-schema:
+file-schemata:
   - files: [intrinsic_properties.yaml]
     validator: mammos_entity_file
     schema:
