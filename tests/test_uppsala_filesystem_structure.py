@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mammos_parser.uppsala import validate_dataset
+from mammos_parser.uppsala import load_schema, validate_filesystem_structure
 
 
 def make_tree(base: Path, structure: dict):
@@ -18,7 +18,8 @@ def make_tree(base: Path, structure: dict):
 @pytest.fixture
 def valid_dataset():
     return {
-        # "intrinsic_properties.yaml": "FILE",  # if preset its contet would be checked
+        "dataset-schema.yaml": "FILE",
+        "intrinsic_properties.yaml": "FILE",
         "structure.cif": "FILE",
         "RSPt": {
             "common_input": {
@@ -53,7 +54,7 @@ def valid_dataset():
                 "momfile": "FILE",
                 "posfile": "FILE",
                 "inpsd.dat": "FILE",
-                # "thermal.csv": "FILE",  # if preset its content would be checked
+                "thermal.csv": "FILE",
                 "thermal.dat": "FILE",
             },
         },
@@ -62,7 +63,8 @@ def valid_dataset():
 
 def test_valid_dataset_structure(tmp_path, valid_dataset):
     make_tree(tmp_path, valid_dataset)
-    assert validate_dataset(tmp_path, check_derived_files=False) is True
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is True
 
 
 def test_missing_required_file(tmp_path, valid_dataset):
@@ -70,7 +72,8 @@ def test_missing_required_file(tmp_path, valid_dataset):
     del data["structure.cif"]
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False
 
 
 def test_jij_missing_required_file(tmp_path, valid_dataset):
@@ -78,7 +81,8 @@ def test_jij_missing_required_file(tmp_path, valid_dataset):
     del data["RSPt"]["Jij"]["data"]
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False
 
 
 def test_jij_pair_violation_no_out(tmp_path, valid_dataset):
@@ -86,7 +90,8 @@ def test_jij_pair_violation_no_out(tmp_path, valid_dataset):
     del data["RSPt"]["Jij"]["out-1"]
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False
 
 
 def test_jij_pair_violation_no_inp(tmp_path, valid_dataset):
@@ -94,7 +99,8 @@ def test_jij_pair_violation_no_inp(tmp_path, valid_dataset):
     del data["RSPt"]["Jij"]["green.inp-1"]
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False
 
 
 def test_unknown_file(tmp_path, valid_dataset):
@@ -102,7 +108,8 @@ def test_unknown_file(tmp_path, valid_dataset):
     data["RSPt"]["Jij"]["foo"] = "FILE"
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False
 
 
 def test_unknown_directory(tmp_path, valid_dataset):
@@ -110,7 +117,8 @@ def test_unknown_directory(tmp_path, valid_dataset):
     data["foo"] = {}
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False
 
 
 def test_optional_gs_y(tmp_path, valid_dataset):
@@ -118,7 +126,8 @@ def test_optional_gs_y(tmp_path, valid_dataset):
     data["RSPt"].pop("gs_y", None)
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is True
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is True
 
 
 def test_directory_instead_of_file(tmp_path, valid_dataset):
@@ -126,4 +135,5 @@ def test_directory_instead_of_file(tmp_path, valid_dataset):
     data["intrinsic_properties.yaml"] = {}
 
     make_tree(tmp_path, data)
-    assert validate_dataset(tmp_path, check_derived_files=False) is False
+    schema = load_schema()["filesystem-schema"]
+    assert validate_filesystem_structure(tmp_path, schema) is False

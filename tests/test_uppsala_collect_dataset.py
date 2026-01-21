@@ -17,6 +17,7 @@ def test_complete_datasets(tmp_path: Path):
     # needed. The order is therefor important.
     make_file(tmp_path / "intrinsic_properties.yaml")
     make_file(tmp_path / "structure.cif")
+    make_file(tmp_path / "dataset-schema.yaml")
 
     # incomplete
     assert not uppsala.validate_dataset(tmp_path)
@@ -43,10 +44,10 @@ def test_complete_datasets(tmp_path: Path):
 
     # all required files, first calculation mode
 
-    # content of intrinsic_properties.yaml missing
+    # content of intrinsic_properties.yaml and thermal.csv missing
     assert not uppsala.validate_dataset(tmp_path)
 
-    # add required entries to intrinsic_properties.yaml
+    # add required file content
     me.io.entities_to_file(
         tmp_path / "intrinsic_properties.yaml",
         Js=me.Js(2, "T"),
@@ -60,6 +61,7 @@ def test_complete_datasets(tmp_path: Path):
         Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
         Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
     )
+    (tmp_path / "dataset-schema.yaml").write_text("version: 1")
     assert uppsala.validate_dataset(tmp_path)
 
     # break yaml file
@@ -140,6 +142,20 @@ def test_complete_datasets(tmp_path: Path):
         Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
     )
     assert uppsala.validate_dataset(tmp_path)
+
+    # break dataset-schema.yaml
+    (tmp_path / "dataset-schema.yaml").write_text("version: 2")
+    assert not uppsala.validate_dataset(tmp_path)
+    (tmp_path / "dataset-schema.yaml").write_text("version: '1'")
+    assert not uppsala.validate_dataset(tmp_path)
+    (tmp_path / "dataset-schema.yaml").write_text("version: 1\nother: false")
+    assert not uppsala.validate_dataset(tmp_path)
+    (tmp_path / "dataset-schema.yaml").write_text("other: false")
+    assert not uppsala.validate_dataset(tmp_path)
+    # revert file content for remaining checks
+    (tmp_path / "dataset-schema.yaml").write_text("version: 1")
+    assert uppsala.validate_dataset(tmp_path)
+
     # # overwrite with a file with incompatible Js and Ms
     # me.io.entities_to_file(
     #     tmp_path / "intrinsic_properties.yaml",

@@ -159,7 +159,7 @@ def type_from_string(type_name: str):
     return getattr(module, attr)
 
 
-def validate_mammos_entity_file(
+def _validate_mammos_entity_file(
     base_path: Path, filepath: Path | str, schema: dict[str, dict]
 ) -> tuple[bool, list[ContentValidationError]]:
     try:
@@ -216,14 +216,17 @@ def validate_mammos_entity_file(
     return len(errors) == 0, errors
 
 
-def validate_yaml_file(
+def _validate_yaml_file(
     base_path: Path, filepath: Path | str, schema: dict[str, dict]
 ) -> tuple[bool, list[ContentValidationError]]:
     try:
         with open(base_path / filepath) as f:
             content = yaml.safe_load(f)
     except Exception as e:
-        return False, [ContentValidationError(filepath, str(e))]
+        return False, [ContentValidationError(base_path, filepath, str(e))]
+
+    if content is None:
+        return False, [ContentValidationError(base_path, filepath, "File is empty")]
 
     validator = cerberus.Validator(schema)
     if not validator.validate(content):
@@ -234,30 +237,27 @@ def validate_yaml_file(
     return True, []
 
 
-def validate_dataset(base_path: Path) -> bool:
-    """Validate dataset structure."""
-    dataset_valid = True
-
-    logger.info("Reading uppsala dataset '%s'", base_path)
+def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:
     data_tree = tree_to_dict(base_path)
-    schema = load_schema()
 
-    # filesystem structure
     validator = DatasetValidator(
-        schema["filesystem-schema"],
+        schema,
         require_all=False,  # schema components cary required:true to get better errors
     )
     error_handler = FileSystemErrorHandler(validator=validator)
     validator.error_handler = error_handler
     if not validator.validate(data_tree):
-        dataset_valid = False
         report_errors(validator.errors, base_path.name)
+        return False
     else:
         logger.info("Dataset structure correct")
+        return True
 
-    # file content
-    for file_group in schema["file-schema"]:
-        validator = globals().get(f"validate_{file_group['validator']}")
+
+def validate_file_content(base_path: Path, schema: dict) -> bool:
+    dataset_valid = True
+    for file_group in schema:
+        validator = globals().get(f"_validate_{file_group['validator']}")
         if not validator:
             logger.critical(
                 "Did not find validator for %s; required for %s",
@@ -279,3 +279,17 @@ def validate_dataset(base_path: Path) -> bool:
                 logger.error(str(error))
 
     return dataset_valid
+
+
+def validate_dataset(base_path: Path) -> bool:
+    """Validate dataset structure."""
+    logger.info("Reading uppsala dataset '%s'", base_path)
+
+    schema = load_schema()
+
+    filesystem_structure_valid = validate_filesystem_structure(
+        base_path, schema["filesystem-schema"]
+    )
+    file_content_valid = validate_file_content(base_path, schema["file-schemata"])
+
+    return filesystem_structure_valid and file_content_valid
