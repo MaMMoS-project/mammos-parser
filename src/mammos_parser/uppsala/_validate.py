@@ -15,7 +15,7 @@ DERIVED_FILES = [
 ]
 
 
-def load_schema(path: Path | None = None, index: int = 0) -> dict:
+def load_schema(path: Path | None = None) -> dict:
     """Load schema for dataset.
 
     If no path is provided the bundled schema is returned.
@@ -23,7 +23,12 @@ def load_schema(path: Path | None = None, index: int = 0) -> dict:
     if path is None:
         path = Path(__file__).parent / "dataset-schema.yaml"
     with path.open() as f:
-        return list(yaml.safe_load_all(f))[index]
+        schema = yaml.safe_load(f)
+    if schema["meta"]["version"] != 1:
+        raise RuntimeError(
+            f"Can only read schema version 1, not {schema['meta']['version']}"
+        )
+    return schema
 
 
 def tree_to_dict(root_path: Path) -> dict:
@@ -79,9 +84,9 @@ class DatasetValidator(cerberus.Validator):
         suffixes_2 = suffixes(prefix_2)
 
         for suffix in suffixes_1 - suffixes_2:
-            self._error(field, f"'{prefix_2}{suffix}' missing")
+            self._error(field, f"missing file '{prefix_2}{suffix}'")
         for suffix in suffixes_2 - suffixes_1:
-            self._error(field, f"'{prefix_1}{suffix}' missing")
+            self._error(field, f"missing file '{prefix_1}{suffix}'")
         return False
 
 
@@ -122,25 +127,27 @@ class FileSystemErrorHandler(cerberus.errors.BasicErrorHandler):
         )
 
 
-def report_errors(errors: dict, root: str):
+def report_errors(errors: dict, root: str, sep: str = "/"):
     """Print all errors in cerberus error dict."""
     for key, vals in errors.items():
         if isinstance(vals[-1], dict):
             for val in vals[:-1]:
-                logger.error(f"'{root}/{key}': {val}")
+                logger.error(f"'{root}{sep}{key}': {val}")
             report_errors(vals[-1], f"{root}/{key}")
         else:
             for val in vals:
-                logger.error(f"'{root}/{key}': {val}")
+                logger.error(f"'{root}{sep}{key}': {val}")
 
 
 class ContentValidationError:
-    def __init__(self, path, message):
-        self.path = path
+    def __init__(self, base_path: Path, file_path: Path | str, message: str):
+        self.base_path = base_path
+        self.file_path = file_path
         self.message = message
 
     def __str__(self):
-        return f"'{self.path}': {self.message}"
+        path = (self.base_path / self.file_path).relative_to(self.base_path.parent)
+        return f"'{path}': {self.message}"
 
 
 def type_from_string(type_name: str):
@@ -152,109 +159,123 @@ def type_from_string(type_name: str):
     return getattr(module, attr)
 
 
-def validate_content(filepath, schema) -> tuple[bool, list[ContentValidationError]]:
-    if not filepath.is_file():
-        return False, []
+def validate_mammos_entity_file(
+    base_path: Path, filepath: Path | str, schema: dict[str, dict]
+) -> tuple[bool, list[ContentValidationError]]:
     try:
-        obj = me.io.entities_from_file(filepath)
+        entity_collection = me.io.entities_from_file(base_path / filepath)
     except Exception as e:
-        return False, [ContentValidationError(filepath, str(e))]
+        return False, [ContentValidationError(base_path, filepath, str(e))]
 
     errors = []
     seen = {"description"}
     for name, spec in schema.items():
-        if not hasattr(obj, name):
+        if not hasattr(entity_collection, name):
             errors.append(
-                ContentValidationError(filepath, f"missing property '{name}'")
+                ContentValidationError(
+                    base_path, filepath, f"missing property '{name}'"
+                )
             )
             continue
 
-        value = getattr(obj, name)
-        if not isinstance(value, type_from_string(spec["type"])):
-            vt = type(value)
+        entity = getattr(entity_collection, name)
+        if not isinstance(entity, type_from_string(spec["type"])):
             errors.append(
                 ContentValidationError(
+                    base_path,
                     filepath,
-                    f"property '{name}' has type '{vt.__module__}.{vt.__name__}', "
+                    "property '{name}' has type "
+                    f"'{type(entity).__module__}.{type(entity).__name__}', "
                     f"expected '{spec['type']}'",
                 )
             )
             continue
 
-        if getattr(value, "ontology_label", None) != spec["ontology_label"]:
+        if getattr(entity, "ontology_label", None) != spec["ontology_label"]:
             errors.append(
                 ContentValidationError(
+                    base_path,
                     filepath,
                     f"property '{name}' has label "
-                    f"'{getattr(value, 'ontology_label', None)}', "
+                    f"'{getattr(entity, 'ontology_label', None)}', "
                     f"expected '{spec['ontology_label']}'",
                 )
             )
 
         seen.add(name)
 
-    extra = set(vars(obj)) - seen
+    extra = set(vars(entity_collection)) - seen
     if extra:
         for elem in sorted(extra):
             errors.append(
-                ContentValidationError(filepath, f"unknown property: '{elem}'")
+                ContentValidationError(
+                    base_path, filepath, f"unknown property: '{elem}'"
+                )
             )
 
     return len(errors) == 0, errors
 
 
-def drop_derived_files(schema):
-    keys = list(schema.keys())
-    for key in keys:
-        if schema[key].get("meta", {}).get("preprocessed-output", False):
-            schema.pop(key)
-        elif "schema" in schema[key]:
-            drop_derived_files(schema[key]["schema"])
+def validate_yaml_file(
+    base_path: Path, filepath: Path | str, schema: dict[str, dict]
+) -> tuple[bool, list[ContentValidationError]]:
+    try:
+        with open(base_path / filepath) as f:
+            content = yaml.safe_load(f)
+    except Exception as e:
+        return False, [ContentValidationError(filepath, str(e))]
+
+    validator = cerberus.Validator(schema)
+    if not validator.validate(content):
+        path = (base_path / filepath).relative_to(base_path.parent)
+        report_errors(validator.errors, path, sep=":")
+        return False, []
+
+    return True, []
 
 
-def validate_dataset(base_path: Path, check_derived_files: bool = True) -> bool:
+def validate_dataset(base_path: Path) -> bool:
     """Validate dataset structure."""
     dataset_valid = True
 
     logger.info("Reading uppsala dataset '%s'", base_path)
     data_tree = tree_to_dict(base_path)
-    schema = load_schema(index=1)["schema"]
+    schema = load_schema()
 
-    if not check_derived_files:
-        drop_derived_files(schema)
-
+    # filesystem structure
     validator = DatasetValidator(
-        schema,
+        schema["filesystem-schema"],
         require_all=False,  # schema components cary required:true to get better errors
     )
     error_handler = FileSystemErrorHandler(validator=validator)
     validator.error_handler = error_handler
-
-    # filesystem structure
     if not validator.validate(data_tree):
         dataset_valid = False
         report_errors(validator.errors, base_path.name)
     else:
         logger.info("Dataset structure correct")
 
-    if not check_derived_files:
-        return dataset_valid
+    # file content
+    for file_group in schema["file-schema"]:
+        validator = globals().get(f"validate_{file_group['validator']}")
+        if not validator:
+            logger.critical(
+                "Did not find validator for %s; required for %s",
+                file_group["validator"],
+                ", ".join(file_group["files"]),
+            )
+            dataset_valid = False
+            continue
 
-    # intrinsic_properties.yaml
-    file_valid, errors = validate_content(
-        base_path / "intrinsic_properties.yaml", load_schema(index=2)["schema"]
-    )
-    dataset_valid = dataset_valid and file_valid
-    for error in errors:
-        logger.error(str(error))
+        for file in file_group["files"]:
+            if not (base_path / file).exists():
+                # the filesystem validation has already warned about missing files;
+                # silently continue here
+                continue
 
-    # UppASD/MC_*/thermal.csv
-    for dir in base_path.glob("UppASD/MC_*"):
-        file_valid, errors = validate_content(
-            dir / "thermal.csv", load_schema(index=3)["schema"]
-        )
-        dataset_valid = dataset_valid and file_valid
-        for error in errors:
-            logger.error(str(error))
+            file_valid, errors = validator(base_path, file, file_group["schema"])
+            dataset_valid = dataset_valid and file_valid
+            for error in errors:
+                logger.error(str(error))
 
     return dataset_valid
