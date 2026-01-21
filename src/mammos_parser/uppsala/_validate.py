@@ -146,10 +146,9 @@ class ContentValidationError:
 
 
 def type_from_string(type_name: str):
-    # type_name like "datetime.datetime" or "collections.abc.Mapping"
     module_name, _, attr = type_name.rpartition(".")
     if not module_name:
-        raise ValueError("Use a fully-qualified name like 'datetime.datetime'")
+        raise ValueError("Use a fully-qualified name like 'mammos_entity.Entity'")
     module = importlib.import_module(module_name)
     return getattr(module, attr)
 
