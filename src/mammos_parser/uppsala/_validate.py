@@ -9,11 +9,6 @@ import yaml
 
 logger = getLogger(__name__)
 
-DERIVED_FILES = [
-    ("intrinsic_properties.yaml",),
-    ("UppASD", "schema", "MC_1", "schema", "thermal.csv"),
-]
-
 
 def load_schema(path: Path | None = None) -> dict:
     """Load schema for dataset.
