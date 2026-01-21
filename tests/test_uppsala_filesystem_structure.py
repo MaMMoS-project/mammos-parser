@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mammos_parser.uppsala import load_schema, validate_filesystem_structure
+from mammos_parser.uppsala._validate import load_schema, validate_filesystem_structure
 
 
 def make_tree(base: Path, structure: dict):
