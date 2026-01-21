@@ -65,7 +65,7 @@ filesystem-schema:
       MC_3: {<<: *MC_dir, required: false}
       README.md: {type: file, required: false}
 file-schema:
-  - files: [instrinsic_properties.yaml]
+  - files: [intrinsic_properties.yaml]
     validator: mammos_entity_file
     schema:
       Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation}
@@ -81,7 +81,7 @@ file-schema:
       T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature}
       Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
       Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
-  - file: [dataset-schema.yaml]
+  - files: [dataset-schema.yaml]
     validator: yaml_file
     schema:
-      version: {type: string, value: 1}
+      version: {type: integer, allowed: [1], required: true}
