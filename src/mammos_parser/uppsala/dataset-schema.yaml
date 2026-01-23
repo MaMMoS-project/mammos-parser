@@ -1,0 +1,91 @@
+meta:
+  version: 1
+  description: >-
+    Structure of UppASD datasets, combined DFT and spindynamics inputs and outputs.
+    Only files/directories listed in the schema are allowed in the dataset.
+    File content is only validated for selected files.
+filesystem-schema:
+  dataset-schema.yaml: {type: file, required: true}
+  DOSCAR: {type: file, required: false}
+  README.md: {type: file, required: false}
+  intrinsic_properties.yaml: {type: file, required: true}
+  structure.cif: {type: file, required: true}
+  RSPt:
+    type: directory
+    required: true
+    schema:
+      README.md: {type: file, required: false}
+      common_input:
+        type: directory
+        required: true
+        schema:
+          atomdens: {type: file, required: true}
+          kmap: {type: file, required: true}
+          spts: {type: file, required: true}
+          symcof: {type: file, required: true}
+          symt.inp: {type: file, required: true}
+      gs_x: &gs_dir
+        type: directory
+        required: true
+        schema:
+          data: {type: file, required: true}
+          out_last: {type: file, required: true}
+          hist: {type: file, excludes: out_MF, required: true}
+          out_MF: {type: file, excludes: hist, required: true}
+      # re-use definition of gs_x for gs_y (not required) and gs_z
+      gs_y: {<<: *gs_dir, required: false}
+      gs_z: *gs_dir
+      Jij:
+        type: directory
+        required: true
+        # The Jij directory contains data, out_last, and pairs of green.inp-* and out-* files with arbitrary suffix.
+        # The following rules enforce that green.inp-* and out-* come in pairs and that no other unknown files are present.
+        schema:
+          data: {type: file, required: true}
+          out_last: {type: file, required: true}
+        allow_unknown:
+          type: file
+        keysrules:
+          regex: '^(data|out_last|green\.inp-.+|out-.+)$'
+        paired_prefix: ['green.inp-', 'out-']
+  UppASD:
+    type: directory
+    required: true
+    schema:
+      MC_1: &MC_dir
+        type: directory
+        required: true
+        schema:
+          jfile: {type: file, required: true}
+          momfile: {type: file, required: true}
+          posfile: {type: file, required: true}
+          inpsd.dat: {type: file, required: true}
+          thermal.csv: {type: file, required: true}
+          thermal.dat: {type: file, required: true}
+      # reuse definition of MC_1 but make the following two directories optional
+      MC_2: {<<: *MC_dir, required: false}
+      MC_3: {<<: *MC_dir, required: false}
+      README.md: {type: file, required: false}
+file-schemata:
+  - validator: mammos_entity_file
+    files:
+      - intrinsic_properties.yaml
+    schema:
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
+      MAE: {type: mammos_entity.Entity, ontology_label: MagnetocrystallineAnisotropyEnergy}
+      Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature}
+  - validator: mammos_entity_file
+    files:
+      - UppASD/MC_1/thermal.csv
+      - UppASD/MC_2/thermal.csv
+      - UppASD/MC_3/thermal.csv
+    schema:
+      T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
+      Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
+  - validator: yaml_file
+    files:
+      - dataset-schema.yaml
+    schema:
+      version: {type: integer, allowed: [1], required: true}

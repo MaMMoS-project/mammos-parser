@@ -1,5 +1,3 @@
-"""Tools to work with Uppsala datasets (combination of DFT and spindynamics)."""
+"""Tools to work with uppsala data."""
 
-from .collect import collect_dataset
-
-__all__ = ["collect_dataset"]
+from ._validate import validate_dataset as validate_dataset
