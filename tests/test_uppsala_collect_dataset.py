@@ -2,6 +2,7 @@ from pathlib import Path
 
 import mammos_entity as me
 import mammos_units as u
+import yaml
 
 from mammos_parser import uppsala
 
@@ -17,7 +18,7 @@ def test_complete_datasets(tmp_path: Path):
     # needed. The order is therefor important.
     make_file(tmp_path / "intrinsic_properties.yaml")
     make_file(tmp_path / "structure.cif")
-    make_file(tmp_path / "dataset-schema.yaml")
+    make_file(tmp_path / "metadata.yaml")
 
     # incomplete
     assert not uppsala.validate_dataset(tmp_path)
@@ -61,7 +62,8 @@ def test_complete_datasets(tmp_path: Path):
         Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
         Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
     )
-    (tmp_path / "dataset-schema.yaml").write_text("version: 1")
+    with open(tmp_path / "metadata.yaml", "w") as f:
+        yaml.dump({"dataset_schema_version": 1, "mammos_parser_version": "0.1.0"}, f)
     assert uppsala.validate_dataset(tmp_path)
 
     # break yaml file
@@ -144,16 +146,28 @@ def test_complete_datasets(tmp_path: Path):
     assert uppsala.validate_dataset(tmp_path)
 
     # break dataset-schema.yaml
-    (tmp_path / "dataset-schema.yaml").write_text("version: 2")
+    with open(tmp_path / "metadata.yaml", "w") as f:
+        yaml.dump({"dataset_schema_version": 2, "mammos_parser_version": "0.1.0"}, f)
     assert not uppsala.validate_dataset(tmp_path)
-    (tmp_path / "dataset-schema.yaml").write_text("version: '1'")
+    with open(tmp_path / "metadata.yaml", "w") as f:
+        yaml.dump({"dataset_schema_version": "1", "mammos_parser_version": "0.1.0"}, f)
     assert not uppsala.validate_dataset(tmp_path)
-    (tmp_path / "dataset-schema.yaml").write_text("version: 1\nother: false")
+    with open(tmp_path / "metadata.yaml", "w") as f:
+        yaml.dump(
+            {
+                "dataset_schema_version": 1,
+                "mammos_parser_version": "0.1.0",
+                "other": "false",
+            },
+            f,
+        )
     assert not uppsala.validate_dataset(tmp_path)
-    (tmp_path / "dataset-schema.yaml").write_text("other: false")
+    with open(tmp_path / "metadata.yaml", "w") as f:
+        yaml.dump({"mammos_parser_version": "0.1.0"}, f)
     assert not uppsala.validate_dataset(tmp_path)
     # revert file content for remaining checks
-    (tmp_path / "dataset-schema.yaml").write_text("version: 1")
+    with open(tmp_path / "metadata.yaml", "w") as f:
+        yaml.dump({"dataset_schema_version": 1, "mammos_parser_version": "0.1.0"}, f)
     assert uppsala.validate_dataset(tmp_path)
 
     # # overwrite with a file with incompatible Js and Ms

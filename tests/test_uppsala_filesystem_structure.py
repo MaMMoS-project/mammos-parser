@@ -18,7 +18,7 @@ def make_tree(base: Path, structure: dict):
 @pytest.fixture
 def valid_dataset():
     return {
-        "dataset-schema.yaml": "FILE",
+        "metadata.yaml": "FILE",
         "intrinsic_properties.yaml": "FILE",
         "structure.cif": "FILE",
         "RSPt": {

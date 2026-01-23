@@ -292,7 +292,7 @@ def validate_dataset(base_path: Path) -> bool:
     filesystem_structure_valid = validate_filesystem_structure(
         base_path, schema["filesystem-schema"]
     )
-    file_content_valid = validate_file_content(base_path, schema["file-schemata"])
+    file_content_valid = validate_file_content(base_path, schema["file-schemas"])
 
     if filesystem_structure_valid and file_content_valid:
         logger.info("Dataset is valid.")
