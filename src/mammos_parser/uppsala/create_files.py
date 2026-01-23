@@ -16,10 +16,6 @@ from ._validate import load_schema
 logger = getLogger(__name__)
 
 
-def _generate_MC_results_csv():
-    pass
-
-
 def find_in_file(filename: str | Path, expression) -> str:
     """Find subexpression in file, returns the first capture group."""
     matches = re.findall(expression, Path(filename).read_text())
@@ -75,7 +71,7 @@ def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
 def compute_MAE(base_path: Path) -> me.Entity:
     """Compute MAE from dataset using one of several methods."""
     if (base_path / "RSPt/gs_x/hist").exists():
-        # Total energy difference
+        # Total energy difference (preferred method)
         # example line:
         # e   28 7.82E-14 ( 7.59E-11)     7.25741013        -17,483.270 409 502
         # we need to extract the last number (energy) -17...
@@ -178,15 +174,15 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     )
 
 
-def generate_mc_output(base_path: Path) -> None:
+def generate_mc_output(base_path: Path, mc_dir: str) -> None:
     """Read M(T) and create output.csv."""
-    logger.info("GENERATING UppASD/MC_1/thermal.csv")
-    with open(base_path / "UppASD/MC_1/momfile") as f:
+    logger.info(f"GENERATING UppASD/{mc_dir}/thermal.csv")
+    with open(base_path / f"UppASD/{mc_dir}/momfile") as f:
         # count all non-empty lines
         atom_count = len(list(filter(lambda line: line, f.readlines())))
     logger.info("Number of atoms: %i", atom_count)
 
-    with open(base_path / "UppASD/MC_1/inpsd.dat") as f:
+    with open(base_path / f"UppASD/{mc_dir}/inpsd.dat") as f:
         inpsd = f.read()
 
     alat = re.search(r"alat\s+([^\s]+)", inpsd).groups()[0]
@@ -202,7 +198,7 @@ def generate_mc_output(base_path: Path) -> None:
     unit_cell_volume = np.dot(a, np.cross(b, c)) * scaling**3
     logger.info("Unit cell volume: %s", unit_cell_volume.to("Angstrom3"))
 
-    raw_data = pd.read_csv(base_path / "UppASD/MC_1/thermal.dat", sep=r"\s+")
+    raw_data = pd.read_csv(base_path / f"UppASD/{mc_dir}/thermal.dat", sep=r"\s+")
     # in the final dataset we keep T, Ms, E, Cv and U_{Binder}
 
     T = me.T(raw_data["#T[K]"], "K")
@@ -218,7 +214,7 @@ def generate_mc_output(base_path: Path) -> None:
     Cv = me.Entity("IsochoricHeatCapacity", np.gradient(E_q, T.q))
 
     me.io.entities_to_file(
-        base_path / "UppASD/MC_1/thermal.csv",
+        base_path / f"UppASD/{mc_dir}/thermal.csv",
         # description="Temperature-dependent quantities computed with UppASD",
         "Temperature-dependent quantities computed with UppASD",
         T=T,
@@ -242,5 +238,7 @@ def generate_dataset_schema_yaml(base_path: Path):
 def generate_derived_files(base_path: Path) -> None:
     """Generate derived files."""
     generate_dataset_schema_yaml(base_path)
-    generate_mc_output(base_path)
+    for i in [1, 2, 3]:
+        if (base_path / f"UppASD/MC_{i}").is_dir():
+            generate_mc_output(base_path, f"MC_{i}")
     generate_intrinsic_properties_yaml(base_path)
