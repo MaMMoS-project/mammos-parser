@@ -165,9 +165,9 @@ def _validate_mammos_entity_file(
         return False, [ContentValidationError(base_path, filepath, str(e))]
 
     errors = []
-    seen = {"description"}  # ignore special element description
+    seen = set()
     for name, spec in schema.items():
-        if not hasattr(entity_collection, name):
+        if name not in entity_collection.entities:
             errors.append(
                 ContentValidationError(
                     base_path, filepath, f"missing property '{name}'"
@@ -176,33 +176,36 @@ def _validate_mammos_entity_file(
             continue
 
         # TODO switch to dict interface entity_collection.entities once released
-        entity = getattr(entity_collection, name)
-        if not isinstance(entity, type_from_string(spec["type"])):
+        entity_like = entity_collection.entities[name]
+        if not isinstance(entity_like, type_from_string(spec["type"])):
             errors.append(
                 ContentValidationError(
                     base_path,
                     filepath,
                     "property '{name}' has type "
-                    f"'{type(entity).__module__}.{type(entity).__name__}', "
+                    f"'{type(entity_like).__module__}.{type(entity_like).__name__}', "
                     f"expected '{spec['type']}'",
                 )
             )
             continue
 
-        if getattr(entity, "ontology_label", None) != spec["ontology_label"]:
+        if (
+            "ontology_label" in spec
+            and getattr(entity_like, "ontology_label", None) != spec["ontology_label"]
+        ):
             errors.append(
                 ContentValidationError(
                     base_path,
                     filepath,
                     f"property '{name}' has label "
-                    f"'{getattr(entity, 'ontology_label', None)}', "
+                    f"'{getattr(entity_like, 'ontology_label', None)}', "
                     f"expected '{spec['ontology_label']}'",
                 )
             )
 
         seen.add(name)
 
-    extra = set(vars(entity_collection)) - seen
+    extra = set(entity_collection.entities) - seen
     if extra:
         for elem in sorted(extra):
             errors.append(
@@ -252,7 +255,6 @@ def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:
         report_errors(validator.errors, base_path.name)
         return False
     else:
-        logger.info("Dataset structure correct")
         return True
 
 
@@ -295,7 +297,7 @@ def validate_dataset(base_path: Path) -> bool:
     file_content_valid = validate_file_content(base_path, schema["file-schemas"])
 
     if filesystem_structure_valid and file_content_valid:
-        logger.info("Dataset is valid.")
+        logger.info("Dataset is valid")
         return True
     else:
         return False

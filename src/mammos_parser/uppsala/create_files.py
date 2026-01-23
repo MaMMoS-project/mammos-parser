@@ -9,10 +9,9 @@ import mammos_entity as me
 import mammos_units as u
 import numpy as np
 import pandas as pd
+import yaml
 
-from mammos_parser import util
-
-from . import collect_dataset
+from ._validate import load_schema
 
 logger = getLogger(__name__)
 
@@ -21,10 +20,18 @@ def _generate_MC_results_csv():
     pass
 
 
+def find_in_file(filename: str | Path, expression) -> str:
+    """Find subexpression in file, returns the first capture group."""
+    matches = re.findall(expression, Path(filename).read_text())
+    if not matches:
+        raise RuntimeError(f"Could not find {expression} in {filename}.")
+    return matches[-1]
+
+
 def unit_cell_volume(file_path: Path) -> u.Quantity[u.m**3]:
     """Read unit cell volume from out_last file."""
     unit_cell_volume_au = float(
-        util.find_in_file(file_path, r"unit cell volume:[ ]*([0-9.]+)")
+        find_in_file(file_path, r"unit cell volume:[ ]*([0-9.]+)")
     )
     logger.debug("Unit cell volume (a.u.): %s", unit_cell_volume_au)
     return (unit_cell_volume_au * u.constants.a0**3).to("m3")
@@ -65,9 +72,9 @@ def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
     return me.Ms((total_moment / unit_cell_volume(file_path)).to("kA/m"))
 
 
-def compute_MAE(dataset: util.Collected) -> me.Entity:
+def compute_MAE(base_path: Path) -> me.Entity:
     """Compute MAE from dataset using one of several methods."""
-    if "RSPt/gs_x/hist" in dataset.collected_files:
+    if (base_path / "RSPt/gs_x/hist").exists():
         # Total energy difference
         # example line:
         # e   28 7.82E-14 ( 7.59E-11)     7.25741013        -17,483.270 409 502
@@ -75,7 +82,7 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
         value_expr = r"\ne.*?(-?[0-9,]+\.[0-9 ]+)\n"
         file_ = "hist"
         description = "MAE from total energy"
-    elif "RSPt/gs_x/out_MF" in dataset.collected_files:
+    elif (base_path / "RSPt/gs_x/out_MF").exists():
         # Force theorem
         # example line:
         # Eigenvalue sum: -93.5684396400865
@@ -88,17 +95,17 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
         )
 
     value_x = float(
-        util.find_in_file(
-            dataset.root_dir / f"RSPt/gs_x/{file_}",
+        find_in_file(
+            base_path / f"RSPt/gs_x/{file_}",
             value_expr,
         )
         .replace(" ", "")
         .replace(",", "")
     )
-    if f"RSPt/gs_y/{file_}" in dataset.collected_files:
+    if (base_path / f"RSPt/gs_y/{file_}").exists():
         value_y = float(
-            util.find_in_file(
-                dataset.root_dir / f"RSPt/gs_y/{file_}",
+            find_in_file(
+                base_path / f"RSPt/gs_y/{file_}",
                 value_expr,
             )
             .replace(" ", "")
@@ -107,8 +114,8 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
     else:
         value_y = value_x
     value_z = float(
-        util.find_in_file(
-            dataset.root_dir / f"RSPt/gs_z/{file_}",
+        find_in_file(
+            base_path / f"RSPt/gs_z/{file_}",
             value_expr,
         )
         .replace(" ", "")
@@ -116,7 +123,7 @@ def compute_MAE(dataset: util.Collected) -> me.Entity:
     )
 
     delta_e = max(value_x - value_z, value_y - value_z) * u.Ry
-    vol = unit_cell_volume(dataset.root_dir / "RSPt/gs_x/out_last")
+    vol = unit_cell_volume(base_path / "RSPt/gs_x/out_last")
 
     return me.Entity(
         "MagnetocrystallineAnisotropyEnergy",
@@ -131,7 +138,9 @@ def _compute_Tc(uppasd_data: Path) -> me.Entity:
             "Computing Tc from Binder cumulant is not yet implemented."
         )
     else:
-        temperature_data = me.io.entities_from_file(uppasd_data / "MC_1" / "output.csv")
+        temperature_data = me.io.entities_from_file(
+            uppasd_data / "MC_1" / "thermal.csv"
+        )
         Tc_kuzmin = mammos_analysis.kuzmin.kuzmin_properties(
             T=temperature_data.T, Ms=temperature_data.Ms
         ).Tc
@@ -154,15 +163,14 @@ def _compute_Tc(uppasd_data: Path) -> me.Entity:
 
 def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     """Collect intrinsic properties."""
-    data = collect_dataset(base_path)
-
-    Ms = compute_spontaneous_magnetization(data.root_dir / "RSPt/gs_x/out_last")
+    logger.info("GENERATING intrinsic_properties.yaml")
+    Ms = compute_spontaneous_magnetization(base_path / "RSPt/gs_x/out_last")
     Js = me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field()))
-    MAE = compute_MAE(data)
+    MAE = compute_MAE(base_path)
     Tc = _compute_Tc(base_path / "UppASD")
 
     me.io.entities_to_file(
-        data.root_dir / "intrinsic_properties.yaml",
+        base_path / "intrinsic_properties.yaml",
         Js=Js,
         Ms=Ms,
         MAE=MAE,
@@ -172,14 +180,13 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
 
 def generate_mc_output(base_path: Path) -> None:
     """Read M(T) and create output.csv."""
-    data = collect_dataset(base_path)
-
-    with open(data.root_dir / "UppASD/MC_1/momfile") as f:
+    logger.info("GENERATING UppASD/MC_1/thermal.csv")
+    with open(base_path / "UppASD/MC_1/momfile") as f:
         # count all non-empty lines
         atom_count = len(list(filter(lambda line: line, f.readlines())))
     logger.info("Number of atoms: %i", atom_count)
 
-    with open(data.root_dir / "UppASD/MC_1/inpsd.dat") as f:
+    with open(base_path / "UppASD/MC_1/inpsd.dat") as f:
         inpsd = f.read()
 
     alat = re.search(r"alat\s+([^\s]+)", inpsd).groups()[0]
@@ -195,7 +202,7 @@ def generate_mc_output(base_path: Path) -> None:
     unit_cell_volume = np.dot(a, np.cross(b, c)) * scaling**3
     logger.info("Unit cell volume: %s", unit_cell_volume.to("Angstrom3"))
 
-    raw_data = pd.read_csv(data.root_dir / "UppASD/MC_1/M(T)", sep=r"\s+")
+    raw_data = pd.read_csv(base_path / "UppASD/MC_1/thermal.dat", sep=r"\s+")
     # in the final dataset we keep T, Ms, E, Cv and U_{Binder}
 
     T = me.T(raw_data["#T[K]"], "K")
@@ -211,8 +218,9 @@ def generate_mc_output(base_path: Path) -> None:
     Cv = me.Entity("IsochoricHeatCapacity", np.gradient(E_q, T.q))
 
     me.io.entities_to_file(
-        data.root_dir / "UppASD/MC_1/output.csv",
-        description="Temperature-dependent quantities computed with UppASD",
+        base_path / "UppASD/MC_1/thermal.csv",
+        # description="Temperature-dependent quantities computed with UppASD",
+        "Temperature-dependent quantities computed with UppASD",
         T=T,
         Ms=Ms,
         Js=me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field())),
@@ -222,7 +230,17 @@ def generate_mc_output(base_path: Path) -> None:
     )
 
 
+def generate_dataset_schema_yaml(base_path: Path):
+    """Create dataset-schema.yaml."""
+    logger.info("GENERATING dataset-schema.yaml")
+    schema = load_schema()
+    content = {"version": schema["meta"]["version"]}
+    with open(base_path / "dataset-schema.yaml", "w") as f:
+        yaml.dump(content, f)
+
+
 def generate_derived_files(base_path: Path) -> None:
     """Generate derived files."""
+    generate_dataset_schema_yaml(base_path)
     generate_mc_output(base_path)
     generate_intrinsic_properties_yaml(base_path)
