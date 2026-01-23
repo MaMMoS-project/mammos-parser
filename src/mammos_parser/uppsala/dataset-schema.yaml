@@ -66,7 +66,7 @@ filesystem-schema:
       MC_2: {<<: *MC_dir, required: false}
       MC_3: {<<: *MC_dir, required: false}
       README.md: {type: file, required: false}
-file-schemata:
+file-schemas:
   - validator: mammos_entity_file
     files:
       - intrinsic_properties.yaml
@@ -86,6 +86,7 @@ file-schemata:
       Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
   - validator: yaml_file
     files:
-      - dataset-schema.yaml
+      - metadata.yaml
     schema:
-      version: {type: integer, allowed: [1], required: true}
+      dataset_schema_version: {type: integer, allowed: [1], required: true}
+      mammos_parser_version: {type: string, required: true}
