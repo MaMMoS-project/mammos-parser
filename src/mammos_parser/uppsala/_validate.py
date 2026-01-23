@@ -10,13 +10,9 @@ import yaml
 logger = getLogger(__name__)
 
 
-def load_schema(path: Path | None = None) -> dict:
-    """Load schema for dataset.
-
-    If no path is provided the bundled schema is returned.
-    """
-    if path is None:
-        path = Path(__file__).parent / "dataset-schema.yaml"
+def load_schema() -> dict:
+    """Load schema for dataset."""
+    path = Path(__file__).parent / "dataset-schema.yaml"
     with path.open() as f:
         schema = yaml.safe_load(f)
     if schema["meta"]["version"] != 1:
@@ -29,8 +25,8 @@ def load_schema(path: Path | None = None) -> dict:
 def tree_to_dict(root_path: Path) -> dict:
     """Convert directory tree into dictionary.
 
-    Recursively traverse the directory tree starting from root_path
-    and convert it into a nested dictionary.
+    Recursively traverse the directory tree starting from root_path and convert it into
+    a nested dictionary:
     - Directories become keys with sub-dicts.
     - Files become keys with string value FILE.
     """
@@ -51,20 +47,23 @@ class DatasetValidator(cerberus.Validator):
     Adds:
     - type alias 'file' for 'str'
     - type alias 'directory' for 'dict'
-    - pair_exists validator that takes a list of two strings for which elements with
-          common suffix must exist
+    - paired_prefix validator that takes a list of two strings for which elements with
+          common suffix must exist; the validator returns false if elements do not
+          appear in pairs or no elements are present at all.
     """
 
     types_mapping = cerberus.Validator.types_mapping.copy()
     types_mapping["file"] = cerberus.TypeDefinition("file", (str,), ())
     types_mapping["directory"] = cerberus.TypeDefinition(
-        "directory", (collections.abc.Mapping), ()
+        "directory", (collections.abc.Mapping,), ()
     )
 
-    def _validate_paired_prefix(self, constraint, field, value):
+    def _validate_paired_prefix(self, constraint, field, value) -> bool:
         """Check for pairs of prefix1-*, prefix2-*.
 
         prefix1- and prefix2- must be passed as a list of strings.
+
+        The validation also returns False if no elements prefix1-* and prefix2-* exist.
 
         The rule's arguments are validated against this schema:
         {"type": "list", "schema": {"type": "string"}}
@@ -72,17 +71,21 @@ class DatasetValidator(cerberus.Validator):
         prefix_1, prefix_2 = constraint
         keys = set(value)
 
-        def suffixes(prefix):
+        def suffixes(prefix) -> set[str]:
             return {key[len(prefix) :] for key in keys if key.startswith(prefix)}
 
         suffixes_1 = suffixes(prefix_1)
         suffixes_2 = suffixes(prefix_2)
 
-        for suffix in suffixes_1 - suffixes_2:
+        if len(suffixes_1) == len(suffixes_2) == 0:
+            self._error(field, f"missing '{prefix_1}*' and '{prefix_2}*' files")
+            return False
+
+        for suffix in (missing_2 := suffixes_1 - suffixes_2):
             self._error(field, f"missing file '{prefix_2}{suffix}'")
-        for suffix in suffixes_2 - suffixes_1:
+        for suffix in (missing_1 := suffixes_2 - suffixes_1):
             self._error(field, f"missing file '{prefix_1}{suffix}'")
-        return False
+        return len(missing_1) == 0 and len(missing_2) == 0
 
 
 class FileSystemErrorHandler(cerberus.errors.BasicErrorHandler):
@@ -128,7 +131,7 @@ def report_errors(errors: dict, root: str, sep: str = "/"):
         if isinstance(vals[-1], dict):
             for val in vals[:-1]:
                 logger.error(f"'{root}{sep}{key}': {val}")
-            report_errors(vals[-1], f"{root}/{key}")
+            report_errors(vals[-1], root=f"{root}{sep}{key}", sep=sep)
         else:
             for val in vals:
                 logger.error(f"'{root}{sep}{key}': {val}")
@@ -146,7 +149,7 @@ class ContentValidationError:
 
 
 def type_from_string(type_name: str):
-    module_name, _, attr = type_name.rpartition(".")
+    module_name, _dot, attr = type_name.rpartition(".")
     if not module_name:
         raise ValueError("Use a fully-qualified name like 'mammos_entity.Entity'")
     module = importlib.import_module(module_name)
@@ -162,7 +165,7 @@ def _validate_mammos_entity_file(
         return False, [ContentValidationError(base_path, filepath, str(e))]
 
     errors = []
-    seen = {"description"}
+    seen = {"description"}  # ignore special element description
     for name, spec in schema.items():
         if not hasattr(entity_collection, name):
             errors.append(
@@ -172,6 +175,7 @@ def _validate_mammos_entity_file(
             )
             continue
 
+        # TODO switch to dict interface entity_collection.entities once released
         entity = getattr(entity_collection, name)
         if not isinstance(entity, type_from_string(spec["type"])):
             errors.append(
@@ -232,11 +236,15 @@ def _validate_yaml_file(
 
 
 def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:
+    if not base_path.is_dir():
+        logger.error("Base directory '%s' does not exist.", base_path)
+        return False
+
     data_tree = tree_to_dict(base_path)
 
     validator = DatasetValidator(
         schema,
-        require_all=False,  # schema components cary required:true to get better errors
+        require_all=False,  # schema components have required:true to get better errors
     )
     error_handler = FileSystemErrorHandler(validator=validator)
     validator.error_handler = error_handler
@@ -277,7 +285,7 @@ def validate_file_content(base_path: Path, schema: dict) -> bool:
 
 def validate_dataset(base_path: Path) -> bool:
     """Validate dataset structure."""
-    logger.info("Reading uppsala dataset '%s'", base_path)
+    logger.info("Checking dataset '%s'", base_path)
 
     schema = load_schema()
 
@@ -286,4 +294,8 @@ def validate_dataset(base_path: Path) -> bool:
     )
     file_content_valid = validate_file_content(base_path, schema["file-schemata"])
 
-    return filesystem_structure_valid and file_content_valid
+    if filesystem_structure_valid and file_content_valid:
+        logger.info("Dataset is valid.")
+        return True
+    else:
+        return False

@@ -61,79 +61,75 @@ def valid_dataset():
     }
 
 
-def test_valid_dataset_structure(tmp_path, valid_dataset):
+@pytest.fixture
+def schema():
+    return load_schema()["filesystem-schema"]
+
+
+def test_valid_dataset_structure(tmp_path, valid_dataset, schema):
     make_tree(tmp_path, valid_dataset)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is True
+    assert validate_filesystem_structure(tmp_path, schema)
 
 
-def test_missing_required_file(tmp_path, valid_dataset):
-    data = valid_dataset
-    del data["structure.cif"]
+def test_missing_required_file(tmp_path, valid_dataset, schema):
+    del valid_dataset["structure.cif"]
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
-def test_jij_missing_required_file(tmp_path, valid_dataset):
-    data = valid_dataset
-    del data["RSPt"]["Jij"]["data"]
+def test_jij_missing_required_file(tmp_path, valid_dataset, schema):
+    del valid_dataset["RSPt"]["Jij"]["data"]
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
-def test_jij_pair_violation_no_out(tmp_path, valid_dataset):
-    data = valid_dataset
-    del data["RSPt"]["Jij"]["out-1"]
+def test_jij_missing_inp_out(tmp_path, valid_dataset, schema):
+    for name in ["green.inp-1", "out-1", "green.inp-1-1", "out-1-1"]:
+        del valid_dataset["RSPt"]["Jij"][name]
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
-
-
-def test_jij_pair_violation_no_inp(tmp_path, valid_dataset):
-    data = valid_dataset
-    del data["RSPt"]["Jij"]["green.inp-1"]
-
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
-def test_unknown_file(tmp_path, valid_dataset):
-    data = valid_dataset
-    data["RSPt"]["Jij"]["foo"] = "FILE"
+def test_jij_pair_violation_no_out(tmp_path, valid_dataset, schema):
+    del valid_dataset["RSPt"]["Jij"]["out-1"]
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
-def test_unknown_directory(tmp_path, valid_dataset):
-    data = valid_dataset
-    data["foo"] = {}
+def test_jij_pair_violation_no_inp(tmp_path, valid_dataset, schema):
+    del valid_dataset["RSPt"]["Jij"]["green.inp-1"]
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
-def test_optional_gs_y(tmp_path, valid_dataset):
-    data = valid_dataset
-    data["RSPt"].pop("gs_y", None)
+def test_unknown_file(tmp_path, valid_dataset, schema):
+    valid_dataset["RSPt"]["Jij"]["foo"] = "FILE"
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is True
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
-def test_directory_instead_of_file(tmp_path, valid_dataset):
-    data = valid_dataset
-    data["intrinsic_properties.yaml"] = {}
+def test_unknown_directory(tmp_path, valid_dataset, schema):
+    valid_dataset["foo"] = {}
 
-    make_tree(tmp_path, data)
-    schema = load_schema()["filesystem-schema"]
-    assert validate_filesystem_structure(tmp_path, schema) is False
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
+
+
+def test_optional_gs_y(tmp_path, valid_dataset, schema):
+    valid_dataset["RSPt"].pop("gs_y", None)
+
+    make_tree(tmp_path, valid_dataset)
+    assert validate_filesystem_structure(tmp_path, schema)
+
+
+def test_directory_instead_of_file(tmp_path, valid_dataset, schema):
+    valid_dataset["intrinsic_properties.yaml"] = {}
+
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
