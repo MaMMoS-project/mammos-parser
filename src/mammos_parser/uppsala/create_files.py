@@ -132,14 +132,14 @@ def compute_MAE(base_path: Path) -> me.Entity:
     )
 
 
-def _compute_Tc(uppasd_data: Path) -> me.Entity:
-    if (uppasd_data / "MC_2").exists():
+def _compute_Tc(base_path: Path) -> me.Entity:
+    if (base_path / "UppASD/MC_2").exists():
         raise NotImplementedError(
             "Computing Tc from Binder cumulant is not yet implemented."
         )
     else:
         temperature_data = me.io.entities_from_file(
-            uppasd_data / "MC_1" / "thermal.csv"
+            base_path / "UppASD/MC_1/thermal.csv"
         )
         Tc_kuzmin = mammos_analysis.kuzmin.kuzmin_properties(
             T=temperature_data.T, Ms=temperature_data.Ms
@@ -167,7 +167,7 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     Ms = compute_spontaneous_magnetization(base_path / "RSPt/gs_x/out_last")
     Js = me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field()))
     MAE = compute_MAE(base_path)
-    Tc = _compute_Tc(base_path / "UppASD")
+    Tc = _compute_Tc(base_path)
 
     me.io.entities_to_file(
         base_path / "intrinsic_properties.yaml",

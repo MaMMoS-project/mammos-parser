@@ -5,7 +5,7 @@ import mammos_units as u
 import pytest
 from pytest import approx
 
-from mammos_parser.uppsala import collect_dataset, create_files
+from mammos_parser.uppsala import create_files
 
 
 def test_unit_cell_volume(tmp_path: Path) -> None:
@@ -177,12 +177,10 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
         )
     )
 
-    dataset = collect_dataset(tmp_path)
-
     Ex = -17483.270409502
     Ez = -17483.270416975
     ref_MAE = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(dataset)
+    MAE = create_files.compute_MAE(tmp_path)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
@@ -208,12 +206,10 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
         )
     )
 
-    dataset = collect_dataset(tmp_path)
-
     Ey = -17483.270400000
     assert Ex - Ez < Ey - Ez  # ensure yz is larger to confirm we use it
     ref_MAE = ((Ey - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(dataset)
+    MAE = create_files.compute_MAE(tmp_path)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
@@ -238,12 +234,10 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
         )
     )
 
-    dataset = collect_dataset(tmp_path)
-
     Ey = -17483.270500000
     assert Ex - Ez > Ey - Ez  # ensure xz is larger to confirm we use it
     ref_MAE = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(dataset)
+    MAE = create_files.compute_MAE(tmp_path)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
@@ -298,12 +292,10 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
         )
     )
 
-    dataset = collect_dataset(tmp_path)
-
     ev_x = -96.5273077386128
     ev_z = -96.5273735366564
     ref_MAE = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(dataset)
+    MAE = create_files.compute_MAE(tmp_path)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
@@ -322,12 +314,10 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
         )
     )
 
-    dataset = collect_dataset(tmp_path)
-
     ev_y = -96.5273000000000
     assert ev_x - ev_z < ev_y - ev_z  # ensure yz is larger to confirm we use it
     ref_MAE = ((ev_y - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(dataset)
+    MAE = create_files.compute_MAE(tmp_path)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
@@ -345,12 +335,10 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
         )
     )
 
-    dataset = collect_dataset(tmp_path)
-
     ev_y = -96.5274000000000
     assert ev_x - ev_z > ev_y - ev_z  # ensure xz is larger to confirm we use it
     ref_MAE = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(dataset)
+    MAE = create_files.compute_MAE(tmp_path)
     assert MAE.value == approx(ref_MAE.value)
     assert MAE.unit == "MJ/m^3"
     assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
