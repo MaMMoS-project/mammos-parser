@@ -5,7 +5,7 @@ meta:
     Only files/directories listed in the schema are allowed in the dataset.
     File content is only validated for selected files.
 filesystem-schema:
-  dataset-schema.yaml: {type: file, required: true}
+  metadata.yaml: {type: file, required: true}
   DOSCAR: {type: file, required: false}
   README.md: {type: file, required: false}
   intrinsic_properties.yaml: {type: file, required: true}
