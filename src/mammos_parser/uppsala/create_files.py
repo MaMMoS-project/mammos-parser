@@ -208,8 +208,7 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
 
     unit_cell_volume = np.dot(a, np.cross(b, c)) * scaling**3
     logger.info(
-        "Unit cell volume from '%s': %s",
-        base_path / f"UppASD/{mc_dirname}/inpsd.dat",
+        "Unit cell volume from inpsd.dat: %s",
         unit_cell_volume.to("Angstrom3"),
     )
 
