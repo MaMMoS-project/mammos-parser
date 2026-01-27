@@ -41,7 +41,7 @@ def unit_cell_volume(file_path: Path) -> u.Quantity[u.m**3]:
     logger.info(
         "Unit cell volume from '%s': %s", file_path, unit_cell_volume.to("Angstrom3")
     )
-    return unit_cell_volume
+    return unit_cell_volume.to("m3")
 
 
 def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
@@ -76,7 +76,7 @@ def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
         assert len(primary_directions) == 1
         total_moment += moment * round(primary_directions[0]) * u.mu_B
 
-    return me.Ms((total_moment / unit_cell_volume(file_path)).to("kA/m"))
+    return me.Ms((total_moment / unit_cell_volume(file_path)).to("A/m"))
 
 
 def compute_MAE(base_path: Path) -> me.Entity:
