@@ -83,6 +83,7 @@ file-schemas:
     schema:
       T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature}
       Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation}
       Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
   - validator: csv_file
     files:
