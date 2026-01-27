@@ -5,6 +5,7 @@ from pathlib import Path
 
 import cerberus
 import mammos_entity as me
+import pandas as pd
 import yaml
 
 logger = getLogger(__name__)
@@ -236,6 +237,32 @@ def _validate_yaml_file(
         return False, []
 
     return True, []
+
+
+def _validate_csv_file(
+    base_path: Path, filepath: Path | str, schema: dict[str, dict]
+) -> tuple[bool, list[ContentValidationError]]:
+    try:
+        data = pd.read_csv(base_path / filepath, sep=schema["sep"])
+    except Exception as e:
+        return False, [ContentValidationError(base_path, filepath, str(e))]
+
+    if (columns := list(data.columns)) == schema["columns"]:
+        return True, []
+
+    errors = []
+    if unknown := set(columns) - set(schema["columns"]):
+        for elem in unknown:
+            errors.append(
+                ContentValidationError(base_path, filepath, f"unknown column '{elem}")
+            )
+    if missing := set(schema["columns"]) - set(columns):
+        for elem in missing:
+            errors.append(
+                ContentValidationError(base_path, filepath, f"missing column '{elem}")
+            )
+
+    return False, errors
 
 
 def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:

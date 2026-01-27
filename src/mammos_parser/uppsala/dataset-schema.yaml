@@ -84,6 +84,14 @@ file-schemas:
       T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature}
       Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
       Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
+  - validator: csv_file
+    files:
+      - UppASD/MC_1/thermal.dat
+      - UppASD/MC_2/thermal.dat
+      - UppASD/MC_3/thermal.dat
+    schema:
+      sep: '\s+'
+      columns: ['T', '<M>', '<M^2>', '<M^4>', 'U_{Binder}', '\chi', 'C_v(tot)', '<E>', '<E_{exc}>', '<E_{lsf}>']
   - validator: yaml_file
     files:
       - metadata.yaml
