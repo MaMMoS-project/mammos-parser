@@ -1,5 +1,6 @@
 """Create derived files."""
 
+import functools
 import re
 from logging import getLogger
 from pathlib import Path
@@ -11,26 +12,36 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from mammos_parser import __version__
+
 from ._validate import load_schema
 
 logger = getLogger(__name__)
 
 
 def find_in_file(filename: str | Path, expression) -> str:
-    """Find subexpression in file, returns the first capture group."""
+    """Find subexpression in file.
+
+    Returns the last capture group or the full match if `expression` does not have any
+    capture groups.
+    """
     matches = re.findall(expression, Path(filename).read_text())
     if not matches:
         raise RuntimeError(f"Could not find {expression} in {filename}.")
     return matches[-1]
 
 
+@functools.cache
 def unit_cell_volume(file_path: Path) -> u.Quantity[u.m**3]:
     """Read unit cell volume from out_last file."""
-    unit_cell_volume_au = float(
-        find_in_file(file_path, r"unit cell volume:[ ]*([0-9.]+)")
+    unit_cell_volume = (
+        float(find_in_file(file_path, r"unit cell volume:[ ]*([0-9.]+)"))
+        * u.constants.a0**3
     )
-    logger.debug("Unit cell volume (a.u.): %s", unit_cell_volume_au)
-    return (unit_cell_volume_au * u.constants.a0**3).to("m3")
+    logger.info(
+        "Unit cell volume from '%s': %s", file_path, unit_cell_volume.to("Angstrom3")
+    )
+    return unit_cell_volume
 
 
 def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
@@ -61,9 +72,9 @@ def compute_spontaneous_magnetization(file_path: Path) -> me.Entity:
     for key, moment in moments.items():
         # Cartesian directions of the moment, orientation predominantly along one axis,
         # we are only interested in the sign.
-        direction = [dir_ for dir_ in directions[key] if abs(dir_) > 0.9][0]
-        assert len([dir_ for dir_ in directions[key] if abs(dir_) > 0.9]) == 1
-        total_moment += moment * round(direction) * u.mu_B
+        primary_directions = [dir_ for dir_ in directions[key] if abs(dir_) > 0.9]
+        assert len(primary_directions) == 1
+        total_moment += moment * round(primary_directions[0]) * u.mu_B
 
     return me.Ms((total_moment / unit_cell_volume(file_path)).to("kA/m"))
 
@@ -74,7 +85,7 @@ def compute_MAE(base_path: Path) -> me.Entity:
         # Total energy difference (preferred method)
         # example line:
         # e   28 7.82E-14 ( 7.59E-11)     7.25741013        -17,483.270 409 502
-        # we need to extract the last number (energy) -17...
+        # we need to extract the last number (energy) -17483.270409502
         value_expr = r"\ne.*?(-?[0-9,]+\.[0-9 ]+)\n"
         file_ = "hist"
         description = "MAE from total energy"
@@ -128,42 +139,41 @@ def compute_MAE(base_path: Path) -> me.Entity:
     )
 
 
-def _compute_Tc(base_path: Path) -> me.Entity:
+def compute_Tc(base_path: Path) -> me.Entity:
+    """Compute Tc from crossing of Binder cumulants or specific heat."""
     if (base_path / "UppASD/MC_2").exists():
-        raise NotImplementedError(
+        logger.warning(
             "Computing Tc from Binder cumulant is not yet implemented."
+            " Falling back to Cv."
         )
-    else:
-        temperature_data = me.io.entities_from_file(
-            base_path / "UppASD/MC_1/thermal.csv"
-        )
-        Tc_kuzmin = mammos_analysis.kuzmin.kuzmin_properties(
-            T=temperature_data.T, Ms=temperature_data.Ms
-        ).Tc
-        logger.info("Tc from Kuzmin: %s", Tc_kuzmin)
 
-        cv_peak = temperature_data.Cv.q.max()
-        cv_peak_position = temperature_data.Cv.value.argmax()
-        Tc_Cv = me.Tc(
-            temperature_data.T.q[cv_peak_position], description="Tc from specific heat"
+    temperature_data = me.io.entities_from_file(base_path / "UppASD/MC_1/thermal.csv")
+    Tc_kuzmin = mammos_analysis.kuzmin.kuzmin_properties(
+        T=temperature_data.T, Ms=temperature_data.Ms
+    ).Tc
+    logger.info("Tc from Kuzmin: %s", Tc_kuzmin)
+
+    cv_peak = temperature_data.Cv.q.max()
+    cv_peak_position = temperature_data.Cv.value.argmax()
+    Tc_Cv = me.Tc(
+        temperature_data.T.q[cv_peak_position], description="Tc from specific heat"
+    )
+    logger.info("Tc from Cv peak: %s", Tc_Cv)
+    logger.info("  (Cv peak: %s)", cv_peak)
+    if (delta_T := abs(Tc_Cv.q - Tc_kuzmin.q)) > 50 * u.K:
+        raise RuntimeError(
+            f"Tc from Kuzmin '{Tc_kuzmin}' and Cv '{Tc_Cv}' deviate by {delta_T} > 50K"
         )
-        logger.info("Tc from Cv peak: %s", Tc_Cv)
-        logger.info("Cv peak: %s", cv_peak)
-        if (delta_T := abs(Tc_Cv.q - Tc_kuzmin.q)) > 50 * u.K:
-            raise RuntimeError(
-                f"Tc from Kuzmin '{Tc_kuzmin}' and Cv '{Tc_Cv}' deviate by {delta_T} >"
-                " 50K"
-            )
-        return Tc_Cv
+    return Tc_Cv
 
 
 def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     """Collect intrinsic properties."""
-    logger.info("GENERATING intrinsic_properties.yaml")
+    logger.info(f"Generating '{base_path}/intrinsic_properties.yaml'")
     Ms = compute_spontaneous_magnetization(base_path / "RSPt/gs_x/out_last")
     Js = me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field()))
     MAE = compute_MAE(base_path)
-    Tc = _compute_Tc(base_path)
+    Tc = compute_Tc(base_path)
 
     me.io.entities_to_file(
         base_path / "intrinsic_properties.yaml",
@@ -174,15 +184,15 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     )
 
 
-def generate_mc_output(base_path: Path, mc_dir: str) -> None:
-    """Read M(T) and create output.csv."""
-    logger.info(f"GENERATING UppASD/{mc_dir}/thermal.csv")
-    with open(base_path / f"UppASD/{mc_dir}/momfile") as f:
+def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
+    """Read thermal.dat and create thermal.csv."""
+    logger.info(f"Generating '{base_path}/UppASD/{mc_dirname}/thermal.csv'")
+    with open(base_path / f"UppASD/{mc_dirname}/momfile") as f:
         # count all non-empty lines
         atom_count = len(list(filter(lambda line: line, f.readlines())))
-    logger.info("Number of atoms: %i", atom_count)
+    logger.info("Number of atoms from momfile: %i", atom_count)
 
-    with open(base_path / f"UppASD/{mc_dir}/inpsd.dat") as f:
+    with open(base_path / f"UppASD/{mc_dirname}/inpsd.dat") as f:
         inpsd = f.read()
 
     alat = re.search(r"alat\s+([^\s]+)", inpsd).groups()[0]
@@ -191,14 +201,19 @@ def generate_mc_output(base_path: Path, mc_dir: str) -> None:
     unit_cell_strings = re.search(
         rf"cell\s+({vector}).*\n\s+({vector}).*\n\s+({vector})", inpsd
     )
+    assert len(unit_cell_strings.groups()) == 3
     a, b, c = map(
         lambda string: tuple(map(float, string.split())), unit_cell_strings.groups()
     )
 
     unit_cell_volume = np.dot(a, np.cross(b, c)) * scaling**3
-    logger.info("Unit cell volume: %s", unit_cell_volume.to("Angstrom3"))
+    logger.info(
+        "Unit cell volume from '%s': %s",
+        base_path / f"UppASD/{mc_dirname}/inpsd.dat",
+        unit_cell_volume.to("Angstrom3"),
+    )
 
-    raw_data = pd.read_csv(base_path / f"UppASD/{mc_dir}/thermal.dat", sep=r"\s+")
+    raw_data = pd.read_csv(base_path / f"UppASD/{mc_dirname}/thermal.dat", sep=r"\s+")
     # in the final dataset we keep T, Ms, E, Cv and U_{Binder}
 
     T = me.T(raw_data["#T[K]"], "K")
@@ -207,37 +222,43 @@ def generate_mc_output(base_path: Path, mc_dir: str) -> None:
     # random failures when creating an Energy entity:
     # https://github.com/MaMMoS-project/mammos-entity/issues/96
     E_per_atom = raw_data["<E>"].to_numpy() * u.mRy
-    # E = me.Entity("Energy", (E_per_atom * atom_count).to("J"))
-    E_q = (E_per_atom * atom_count).to("J")
+    E = me.Entity("Energy", (E_per_atom * atom_count).to("J"))
+    # E_q = (E_per_atom * atom_count).to("J")
 
-    assert E_q.value.ndim == 1
-    Cv = me.Entity("IsochoricHeatCapacity", np.gradient(E_q, T.q))
+    assert E.q.value.ndim == 1
+    Cv = me.Entity(
+        "IsochoricHeatCapacity",
+        np.gradient(E.q, T.q),
+        description="Computed as derivative dE/dT.",
+    )
 
     me.io.entities_to_file(
-        base_path / f"UppASD/{mc_dir}/thermal.csv",
-        # description="Temperature-dependent quantities computed with UppASD",
-        "Temperature-dependent quantities computed with UppASD",
+        base_path / f"UppASD/{mc_dirname}/thermal.csv",
+        description="Temperature-dependent quantities computed with UppASD",
         T=T,
         Ms=Ms,
         Js=me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field())),
-        E=E_q,
+        E=E,
         Cv=Cv,
         U_Binder=raw_data["U_{Binder}"].to_numpy(),
     )
 
 
-def generate_dataset_schema_yaml(base_path: Path):
+def generate_metadata_yaml(base_path: Path):
     """Create dataset-schema.yaml."""
-    logger.info("GENERATING dataset-schema.yaml")
+    logger.info(f"Generating '{base_path}/metadata.yaml'")
     schema = load_schema()
-    content = {"version": schema["meta"]["version"]}
-    with open(base_path / "dataset-schema.yaml", "w") as f:
+    content = {
+        "dataset_schema_version": schema["meta"]["version"],
+        "mammos_parser_version": __version__,
+    }
+    with open(base_path / "metadata.yaml", "w") as f:
         yaml.dump(content, f)
 
 
 def generate_derived_files(base_path: Path) -> None:
     """Generate derived files."""
-    generate_dataset_schema_yaml(base_path)
+    generate_metadata_yaml(base_path)
     for i in [1, 2, 3]:
         if (base_path / f"UppASD/MC_{i}").is_dir():
             generate_mc_output(base_path, f"MC_{i}")
