@@ -168,7 +168,7 @@ def _validate_mammos_entity_file(
     errors = []
     seen = set()
     for name, spec in schema.items():
-        if name not in entity_collection.entities:
+        if name not in entity_collection:
             errors.append(
                 ContentValidationError(
                     base_path, filepath, f"missing property '{name}'"
@@ -176,8 +176,7 @@ def _validate_mammos_entity_file(
             )
             continue
 
-        # TODO switch to dict interface entity_collection.entities once released
-        entity_like = entity_collection.entities[name]
+        entity_like = entity_collection[name]
         if not isinstance(entity_like, type_from_string(spec["type"])):
             errors.append(
                 ContentValidationError(
@@ -206,7 +205,7 @@ def _validate_mammos_entity_file(
 
         seen.add(name)
 
-    extra = set(entity_collection.entities) - seen
+    extra = set(name for name, _ in entity_collection) - seen
     if extra:
         for elem in sorted(extra):
             errors.append(
