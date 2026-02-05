@@ -29,7 +29,7 @@ filesystem-schema:
         required: true
         schema:
           data: {type: file, required: true}
-          out_last: {type: file, required: true}
+          out_last: {type: file, required: true}  # output of self-consistent run
           hist: {type: file, excludes: out_MF, required: true}
           out_MF: {type: file, excludes: hist, required: true}
       # re-use definition of gs_x for gs_y (not required) and gs_z
@@ -71,20 +71,23 @@ file-schemas:
     files:
       - intrinsic_properties.yaml
     schema:
-      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation}
-      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
-      MAE: {type: mammos_entity.Entity, ontology_label: MagnetocrystallineAnisotropyEnergy}
-      Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature}
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation, unit: T}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
+      Ku: {type: mammos_entity.Entity, ontology_label: UniaxialAnisotropyConstant, unit: MJ/m3}  # check that the division by volume is not affected by unit cell volume
+      Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature, unit: K}
   - validator: mammos_entity_file
     files:
       - UppASD/MC_1/thermal.csv
       - UppASD/MC_2/thermal.csv
       - UppASD/MC_3/thermal.csv
     schema:
-      T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature}
-      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
-      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation}
-      Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
+      T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature, unit: K}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation, unit: T}
+      U_L: {type: mammos_entity.Entity, ontology_label: BinderCumulant, unit: ''}  # 1 - 1/3 <M^4> / <M^2>^2
+      chi: {type: mammos_entity.Entity, ontology_label: MagneticSusceptibility, unit: ''}
+      E: {type: mammos_entity.Entity, ontology_label: HelmholtzEnergy, unit: eV}
+      Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity, unit: eV/K}  # dE/dT
   - validator: csv_file
     files:
       - UppASD/MC_1/thermal.dat
