@@ -170,11 +170,10 @@ def _validate_mammos_entity_file(
     errors = []
     seen = set()
     for name, spec in schema.items():
+        seen.add(name)
         if name not in entity_collection:
             errors.append(
-                ContentValidationError(
-                    base_path, filepath, f"missing property '{name}'"
-                )
+                ContentValidationError(base_path, filepath, f"missing element '{name}'")
             )
             continue
 
@@ -184,7 +183,7 @@ def _validate_mammos_entity_file(
                 ContentValidationError(
                     base_path,
                     filepath,
-                    "property '{name}' has type "
+                    f"element '{name}' has type "
                     f"'{type(entity_like).__module__}.{type(entity_like).__name__}', "
                     f"expected '{spec['type']}'",
                 )
@@ -199,13 +198,19 @@ def _validate_mammos_entity_file(
                 ContentValidationError(
                     base_path,
                     filepath,
-                    f"property '{name}' has label "
+                    f"element '{name}' has label "
                     f"'{getattr(entity_like, 'ontology_label', None)}', "
                     f"expected '{spec['ontology_label']}'",
                 )
             )
-
-        seen.add(name)
+        if (unit := getattr(entity_like, "unit", None)) != spec["unit"]:
+            errors.append(
+                ContentValidationError(
+                    base_path,
+                    filepath,
+                    f"element '{name}' has unit '{unit}', expected '{spec['unit']}'",
+                )
+            )
 
     extra = set(name for name, _ in entity_collection) - seen
     if extra:
