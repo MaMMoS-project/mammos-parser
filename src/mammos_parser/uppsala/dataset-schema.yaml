@@ -67,6 +67,10 @@ filesystem-schema:
       MC_3: {<<: *MC_dir, required: false}
       README.md: {type: file, required: false}
 file-schemas:
+  - validator: mc_order
+    files:
+      - UppASD  # operate on base directory to access all MC subdirectories
+    schema: {}  # the check is fully defined in mc_order, no schema is required
   - validator: mammos_entity_file
     files:
       - intrinsic_properties.yaml

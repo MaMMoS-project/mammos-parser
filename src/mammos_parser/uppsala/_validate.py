@@ -1,5 +1,7 @@
 import collections
 import importlib
+import math
+import re
 from logging import getLogger
 from pathlib import Path
 
@@ -262,6 +264,47 @@ def _validate_csv_file(
             )
 
     return False, errors
+
+
+def _validate_mc_order(
+    base_path: Path, filepath: Path | str, schema: dict[str, dict]
+) -> tuple[bool, list[ContentValidationError]]:
+    system_sizes = []
+    errors = []
+    for i in range(1, 4):
+        if (file := base_path / filepath / f"MC_{i}" / "inpsd.dat").exists():
+            size_match = re.search(r"ncell\s+(\d+\s+\d+\s+\d+\s+)", file.read_text())
+            if size_match:
+                # to simplify comparing grid sizes we use the total number of cells
+                system_sizes.append(
+                    (i, math.prod(map(int, size_match.group(1).split())))
+                )
+            else:
+                errors.append(
+                    ContentValidationError(
+                        base_path,
+                        Path(filepath) / f"MC_{i}/inpsd.dat",
+                        "File does not contain a line 'ncell <number> <number> <number>"
+                        " ...'",
+                    )
+                )
+
+    if errors:
+        return False, errors
+
+    system_sizes_sorted = sorted(system_sizes, key=lambda t: t[1], reverse=True)
+    if system_sizes != system_sizes_sorted:
+        order = ", ".join(f"MC_{i}" for i, size in system_sizes_sorted)
+        error = ContentValidationError(
+            base_path,
+            filepath,
+            "MC directories are not ordered by system size (total number of cells) in "
+            f"descending order. The order by system size is currently: {order}\n"
+            "Rename the directories to bring them into the correct order.",
+        )
+        return False, [error]
+
+    return True, []
 
 
 def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:
