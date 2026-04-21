@@ -5,6 +5,7 @@ import mammos_entity as me
 import mammos_units as u
 import numpy as np
 import pytest
+from mammos_analysis.kuzmin import kuzmin_formula
 from pytest import approx
 
 from mammos_parser.uppsala import create_files
@@ -387,6 +388,23 @@ def test_Tc_U_L():
     assert Tc_U_L.unit == "K"
 
 
+def test_Tc_U_L_initial_overlap_selects_late_crossing():
+    # Curves overlap initially around U_L = 0.67, then diverge and cross again at 35 K.
+    data1 = me.EntityCollection(
+        T=me.T([0, 10, 20, 30, 40, 50, 60], "K"),
+        U_L=me.Entity("BinderCumulant", [0.67, 0.67, 0.67, 0.60, 0.30, 0.20, 0.20]),
+    )
+    data2 = me.EntityCollection(
+        T=me.T([0, 10, 20, 30, 40, 50, 60], "K"),
+        U_L=me.Entity("BinderCumulant", [0.67, 0.67, 0.62, 0.50, 0.40, 0.30, 0.20]),
+    )
+
+    Tc_U_L = create_files._Tc_from_U_L(data1, data2, me.Tc(38), me.Tc(40))
+    assert Tc_U_L.ontology_label == "CurieTemperature"
+    assert np.isclose(Tc_U_L.value, 35.0)
+    assert Tc_U_L.unit == "K"
+
+
 def test_Tc_U_L_multi_crossing():
     data1 = me.EntityCollection(
         T=me.T([10, 20, 30, 40, 50, 60]),
@@ -413,3 +431,51 @@ def test_Tc_U_L_multi_crossing_mismatch():
     )
     with pytest.raises(RuntimeError):
         create_files._Tc_from_U_L(data1, data2, me.Tc(22), me.Tc(40))
+
+
+def test_compute_Tc_without_MC_2_returns_Cv_peak(tmp_path: Path):
+    T = me.T([0, 10, 20, 30, 40, 50, 60], "K")
+    Ms = kuzmin_formula(Ms_0=me.Ms(800, "kA/m"), T_c=40.5, s=0.5, T=T)
+    # peaks in Cv at 20 K and 40 K
+    Cv = me.Entity("IsochoricHeatCapacity", [1, 2, 7, 3, 10, 3, 1], "eV/K")
+    U_L = me.Entity("BinderCumulant", [0.7, 0.7, 0.7, 0.7, 0.4, 0.2, 0.2])
+
+    (tmp_path / "UppASD" / "MC_1").mkdir(parents=True)
+    me.EntityCollection(T=T, Ms=Ms, Cv=Cv, U_L=U_L).to_yaml(
+        tmp_path / "UppASD/MC_1/thermal.yaml"
+    )
+
+    Tc = create_files.compute_Tc(tmp_path)
+    assert Tc.value == 40.0
+    assert Tc.unit == "K"
+    assert Tc.ontology_label == "CurieTemperature"
+    assert Tc.description == "Tc from peak in specific heat"
+
+
+def test_compute_Tc_with_MC_2_returns_binder_crossing(tmp_path: Path):
+    T_1 = me.T([0, 10, 20, 30, 40, 50, 60], "K")
+    T_2 = me.T([0, 15, 30, 45, 60], "K")
+    Ms_1 = kuzmin_formula(Ms_0=me.Ms(800, "kA/m"), T_c=40.5, s=0.5, T=T_1)
+    Ms_2 = kuzmin_formula(Ms_0=me.Ms(800, "kA/m"), T_c=40.5, s=0.5, T=T_2)
+    # peaks in Cv at 40 K resp. 30 K
+    Cv_1 = me.Entity("IsochoricHeatCapacity", [1, 2, 3, 5, 10, 3, 1], "eV/K")
+    Cv_2 = me.Entity("IsochoricHeatCapacity", [1, 2, 10, 3, 1], "eV/K")
+    U_L_1 = me.Entity("BinderCumulant", [0.7, 0.7, 0.7, 0.7, 0.3, 0.25, 0.25])
+    # Crossing of Binder cumulants at 35 K
+    U_L_2 = me.Entity("BinderCumulant", [0.6, 0.6, 0.6, 0.3, 0.3])
+
+    (tmp_path / "UppASD" / "MC_1").mkdir(parents=True)
+    me.EntityCollection(T=T_1, Ms=Ms_1, Cv=Cv_1, U_L=U_L_1).to_yaml(
+        tmp_path / "UppASD/MC_1/thermal.yaml"
+    )
+
+    (tmp_path / "UppASD" / "MC_2").mkdir()
+    me.EntityCollection(T=T_2, Ms=Ms_2, Cv=Cv_2, U_L=U_L_2).to_yaml(
+        tmp_path / "UppASD/MC_2/thermal.yaml"
+    )
+
+    Tc = create_files.compute_Tc(tmp_path)
+    assert Tc.value == approx(35.0)
+    assert Tc.unit == "K"
+    assert Tc.ontology_label == "CurieTemperature"
+    assert Tc.description == "Tc from crossing of Binder cumulant from MC_1 and MC_2."
