@@ -163,7 +163,7 @@ def _validate_mammos_entity_file(
     base_path: Path, filepath: Path | str, schema: dict[str, dict]
 ) -> tuple[bool, list[ContentValidationError]]:
     try:
-        entity_collection = me.io.entities_from_file(base_path / filepath)
+        entity_collection = getattr(me, f"from_{filepath.suffix}")(base_path / filepath)
     except Exception as e:
         return False, [ContentValidationError(base_path, filepath, str(e))]
 

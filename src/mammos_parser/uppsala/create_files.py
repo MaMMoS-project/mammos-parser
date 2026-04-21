@@ -216,14 +216,14 @@ def _Tc_from_U_L(
 
 def compute_Tc(base_path: Path) -> mammos_entity.Entity:
     """Compute Tc from crossing of Binder cumulants or specific heat."""
-    temperature_data = me.io.entities_from_file(base_path / "UppASD/MC_1/thermal.yaml")
+    temperature_data = me.from_yaml(base_path / "UppASD/MC_1/thermal.yaml")
     Tc_kuzmin = _Tc_from_kuzmin(temperature_data)
     Tc_Cv = _Tc_from_Cv(temperature_data)
 
     if (base_path / "UppASD/MC_2").exists():
         Tc_U_L = _Tc_from_U_L(
             temperature_data,
-            me.io.entities_from_file(base_path / "UppASD/MC_1/thermal.yaml"),
+            me.from_yaml(base_path / "UppASD/MC_1/thermal.yaml"),
         )
     else:
         Tc_U_L = None
