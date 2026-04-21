@@ -129,7 +129,7 @@ def test_compute_magnetization_multiple(tmp_path: Path) -> None:
     assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
-def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
+def test_compute_Ku_total_energy_difference(tmp_path: Path) -> None:
     (tmp_path / "RSPt/gs_x/").mkdir(parents=True)
     (tmp_path / "RSPt/gs_x/out_last").write_text(
         dedent(
@@ -181,11 +181,11 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
 
     Ex = -17483.270409502
     Ez = -17483.270416975
-    ref_MAE = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(tmp_path)
-    assert MAE.value == approx(ref_MAE.value)
-    assert MAE.unit == "MJ/m^3"
-    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    ref_Ku = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
+    Ku = create_files.compute_Ku(tmp_path)
+    assert Ku.value == approx(ref_Ku.value)
+    assert Ku.unit == "MJ/m^3"
+    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
     # Add y with larger value
     (tmp_path / "RSPt/gs_y/").mkdir()
@@ -210,11 +210,11 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
 
     Ey = -17483.270400000
     assert Ex - Ez < Ey - Ez  # ensure yz is larger to confirm we use it
-    ref_MAE = ((Ey - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(tmp_path)
-    assert MAE.value == approx(ref_MAE.value)
-    assert MAE.unit == "MJ/m^3"
-    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    ref_Ku = ((Ey - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
+    Ku = create_files.compute_Ku(tmp_path)
+    assert Ku.value == approx(ref_Ku.value)
+    assert Ku.unit == "MJ/m^3"
+    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
     # Add y with smaller value
     (tmp_path / "RSPt/gs_y/hist").write_text(
@@ -238,14 +238,14 @@ def test_compute_MAE_total_energy_difference(tmp_path: Path) -> None:
 
     Ey = -17483.270500000
     assert Ex - Ez > Ey - Ez  # ensure xz is larger to confirm we use it
-    ref_MAE = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(tmp_path)
-    assert MAE.value == approx(ref_MAE.value)
-    assert MAE.unit == "MJ/m^3"
-    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    ref_Ku = ((Ex - Ez) * u.Ry / unit_cell_volume).to("MJ/m3")
+    Ku = create_files.compute_Ku(tmp_path)
+    assert Ku.value == approx(ref_Ku.value)
+    assert Ku.unit == "MJ/m^3"
+    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
 
-def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
+def test_compute_Ku_force_theorem(tmp_path: Path) -> None:
     (tmp_path / "RSPt/gs_x/").mkdir(parents=True)
     (tmp_path / "RSPt/gs_x/out_last").write_text(
         dedent(
@@ -296,11 +296,11 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
 
     ev_x = -96.5273077386128
     ev_z = -96.5273735366564
-    ref_MAE = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(tmp_path)
-    assert MAE.value == approx(ref_MAE.value)
-    assert MAE.unit == "MJ/m^3"
-    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    ref_Ku = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
+    Ku = create_files.compute_Ku(tmp_path)
+    assert Ku.value == approx(ref_Ku.value)
+    assert Ku.unit == "MJ/m^3"
+    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
     # Add y with larger value
     (tmp_path / "RSPt/gs_y/").mkdir()
@@ -318,11 +318,11 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
 
     ev_y = -96.5273000000000
     assert ev_x - ev_z < ev_y - ev_z  # ensure yz is larger to confirm we use it
-    ref_MAE = ((ev_y - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(tmp_path)
-    assert MAE.value == approx(ref_MAE.value)
-    assert MAE.unit == "MJ/m^3"
-    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    ref_Ku = ((ev_y - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
+    Ku = create_files.compute_Ku(tmp_path)
+    assert Ku.value == approx(ref_Ku.value)
+    assert Ku.unit == "MJ/m^3"
+    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
 
     # Add y with smaller value
     (tmp_path / "RSPt/gs_y/out_MF").write_text(
