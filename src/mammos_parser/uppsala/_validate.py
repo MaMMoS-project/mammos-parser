@@ -261,12 +261,12 @@ def _validate_csv_file(
     if unknown := set(columns) - set(schema["columns"]):
         for elem in unknown:
             errors.append(
-                ContentValidationError(base_path, filepath, f"unknown column '{elem}")
+                ContentValidationError(base_path, filepath, f"unknown column '{elem}'")
             )
     if missing := set(schema["columns"]) - set(columns):
         for elem in missing:
             errors.append(
-                ContentValidationError(base_path, filepath, f"missing column '{elem}")
+                ContentValidationError(base_path, filepath, f"missing column '{elem}'")
             )
 
     return False, errors
