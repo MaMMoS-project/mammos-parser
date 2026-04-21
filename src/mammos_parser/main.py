@@ -24,7 +24,7 @@ def main():
         "--quiet", "-q", help="show only wanings and errors", action="store_true"
     )
 
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(dest="dataset", required=True)
 
     parser_uppsala = subparsers.add_parser("uppsala-data")
 
