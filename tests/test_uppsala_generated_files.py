@@ -1,7 +1,9 @@
 from pathlib import Path
 from textwrap import dedent
 
+import mammos_entity as me
 import mammos_units as u
+import numpy as np
 import pytest
 from pytest import approx
 
@@ -337,8 +339,77 @@ def test_compute_MAE_force_theorem(tmp_path: Path) -> None:
 
     ev_y = -96.5274000000000
     assert ev_x - ev_z > ev_y - ev_z  # ensure xz is larger to confirm we use it
-    ref_MAE = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
-    MAE = create_files.compute_MAE(tmp_path)
-    assert MAE.value == approx(ref_MAE.value)
-    assert MAE.unit == "MJ/m^3"
-    assert MAE.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    ref_Ku = ((ev_x - ev_z) * u.Ry / unit_cell_volume).to("MJ/m3")
+    Ku = create_files.compute_Ku(tmp_path)
+    assert Ku.value == approx(ref_Ku.value)
+    assert Ku.unit == "MJ/m^3"
+    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+
+
+def test_Tc_Cv_one_peak():
+    data = me.EntityCollection(
+        T=me.T([10, 20, 30, 40, 50]),
+        Cv=me.Entity("IsochoricHeatCapacity", [1, 2, 4, 8, 2]),
+    )
+    Tc_Cv = create_files._Tc_from_Cv(data, me.Tc(42))
+    assert Tc_Cv.ontology_label == "CurieTemperature"
+    assert Tc_Cv.value == 40
+    assert Tc_Cv.unit == "K"
+
+
+def test_Tc_Cv_multiple_peaks():
+    data = me.EntityCollection(
+        T=me.T([10, 20, 30, 40, 50]),
+        Cv=me.Entity("IsochoricHeatCapacity", [1, 6, 4, 8, 2]),
+    )
+    Tc_Cv = create_files._Tc_from_Cv(data, me.Tc(42))
+    assert Tc_Cv.ontology_label == "CurieTemperature"
+    assert Tc_Cv.value == 40
+    assert Tc_Cv.unit == "K"
+
+    # different guess from Kuzmin:
+    Tc_Cv = create_files._Tc_from_Cv(data, me.Tc(10))
+    assert Tc_Cv.value == 20
+
+
+def test_Tc_U_L():
+    data1 = me.EntityCollection(
+        T=me.T([10, 20, 30, 40]),
+        U_L=me.Entity("SpontaneousMagnetization", [0.67, 0.67, 0.20, 0.20]),
+    )
+    data2 = me.EntityCollection(
+        T=me.T([10, 20, 30, 40]),
+        U_L=me.Entity("SpontaneousMagnetization", [0.66, 0.66, 0.25, 0.25]),
+    )
+    Tc_U_L = create_files._Tc_from_U_L(data1, data2, me.Tc(22), me.Tc(20))
+    assert Tc_U_L.ontology_label == "CurieTemperature"
+    assert np.isclose(Tc_U_L.value, 21.666666666666)
+    assert Tc_U_L.unit == "K"
+
+
+def test_Tc_U_L_multi_crossing():
+    data1 = me.EntityCollection(
+        T=me.T([10, 20, 30, 40, 50, 60]),
+        U_L=me.Entity("SpontaneousMagnetization", [0.67, 0.67, 0.20, 0.25, 0.20, 0.25]),
+    )
+    data2 = me.EntityCollection(
+        T=me.T([10, 20, 30, 40, 50, 60]),
+        U_L=me.Entity("SpontaneousMagnetization", [0.66, 0.66, 0.25, 0.20, 0.25, 0.20]),
+    )
+    Tc_U_L = create_files._Tc_from_U_L(data1, data2, me.Tc(22), me.Tc(20))
+    assert Tc_U_L.ontology_label == "CurieTemperature"
+    assert np.isclose(Tc_U_L.value, 21.666666666)
+    assert Tc_U_L.unit == "K"
+
+
+def test_Tc_U_L_multi_crossing_mismatch():
+    data1 = me.EntityCollection(
+        T=me.T([10, 20, 30, 40, 50, 60]),
+        U_L=me.Entity("SpontaneousMagnetization", [0.67, 0.67, 0.20, 0.25, 0.20, 0.25]),
+    )
+    data2 = me.EntityCollection(
+        T=me.T([10, 20, 30, 40, 50, 60]),
+        U_L=me.Entity("SpontaneousMagnetization", [0.66, 0.66, 0.25, 0.20, 0.25, 0.20]),
+    )
+    with pytest.raises(RuntimeError):
+        create_files._Tc_from_U_L(data1, data2, me.Tc(22), me.Tc(40))
