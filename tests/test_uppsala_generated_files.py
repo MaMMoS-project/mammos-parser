@@ -78,11 +78,11 @@ def test_compute_magnetization_single(tmp_path: Path) -> None:
     )
 
     unit_cell_volume = 700.413751849785 * u.constants.a0**3
-    ref_Ms = (1.598663e-01 * u.mu_B / unit_cell_volume).to("A/m")
+    ref_Ms = (1.598663e-01 * u.mu_B / unit_cell_volume).to("kA/m")
 
     Ms = create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
     assert Ms.value == approx(ref_Ms.value, rel=1e-6)
-    assert Ms.unit == "A/m"
+    assert Ms.unit == "kA/m"
     assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
@@ -121,11 +121,11 @@ def test_compute_magnetization_multiple(tmp_path: Path) -> None:
     unit_cell_volume = 700.413751849785 * u.constants.a0**3
     ref_Ms = (
         (1.598663e-01 - 9.608900e-03 + 1.605796e-01) * u.mu_B / unit_cell_volume
-    ).to("A/m")
+    ).to("kA/m")
 
     Ms = create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
     assert Ms.value == approx(ref_Ms.value, rel=1e-6)
-    assert Ms.unit == "A/m"
+    assert Ms.unit == "kA/m"
     assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
@@ -185,7 +185,7 @@ def test_compute_Ku_total_energy_difference(tmp_path: Path) -> None:
     Ku = create_files.compute_Ku(tmp_path)
     assert Ku.value == approx(ref_Ku.value)
     assert Ku.unit == "MJ/m^3"
-    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    assert Ku.ontology_label == "UniaxialAnisotropyConstant"
 
     # Add y with larger value
     (tmp_path / "RSPt/gs_y/").mkdir()
@@ -214,7 +214,7 @@ def test_compute_Ku_total_energy_difference(tmp_path: Path) -> None:
     Ku = create_files.compute_Ku(tmp_path)
     assert Ku.value == approx(ref_Ku.value)
     assert Ku.unit == "MJ/m^3"
-    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    assert Ku.ontology_label == "UniaxialAnisotropyConstant"
 
     # Add y with smaller value
     (tmp_path / "RSPt/gs_y/hist").write_text(
@@ -242,7 +242,7 @@ def test_compute_Ku_total_energy_difference(tmp_path: Path) -> None:
     Ku = create_files.compute_Ku(tmp_path)
     assert Ku.value == approx(ref_Ku.value)
     assert Ku.unit == "MJ/m^3"
-    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    assert Ku.ontology_label == "UniaxialAnisotropyConstant"
 
 
 def test_compute_Ku_force_theorem(tmp_path: Path) -> None:
@@ -300,7 +300,7 @@ def test_compute_Ku_force_theorem(tmp_path: Path) -> None:
     Ku = create_files.compute_Ku(tmp_path)
     assert Ku.value == approx(ref_Ku.value)
     assert Ku.unit == "MJ/m^3"
-    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    assert Ku.ontology_label == "UniaxialAnisotropyConstant"
 
     # Add y with larger value
     (tmp_path / "RSPt/gs_y/").mkdir()
@@ -322,7 +322,7 @@ def test_compute_Ku_force_theorem(tmp_path: Path) -> None:
     Ku = create_files.compute_Ku(tmp_path)
     assert Ku.value == approx(ref_Ku.value)
     assert Ku.unit == "MJ/m^3"
-    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    assert Ku.ontology_label == "UniaxialAnisotropyConstant"
 
     # Add y with smaller value
     (tmp_path / "RSPt/gs_y/out_MF").write_text(
@@ -343,7 +343,7 @@ def test_compute_Ku_force_theorem(tmp_path: Path) -> None:
     Ku = create_files.compute_Ku(tmp_path)
     assert Ku.value == approx(ref_Ku.value)
     assert Ku.unit == "MJ/m^3"
-    assert Ku.ontology_label == "MagnetocrystallineAnisotropyEnergy"
+    assert Ku.ontology_label == "UniaxialAnisotropyConstant"
 
 
 def test_Tc_Cv_one_peak():

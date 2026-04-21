@@ -163,7 +163,8 @@ def _validate_mammos_entity_file(
     base_path: Path, filepath: Path | str, schema: dict[str, dict]
 ) -> tuple[bool, list[ContentValidationError]]:
     try:
-        entity_collection = getattr(me, f"from_{filepath.suffix}")(base_path / filepath)
+        suffix = Path(filepath).suffix.lstrip(".")
+        entity_collection = getattr(me, f"from_{suffix}")(base_path / filepath)
     except Exception as e:
         return False, [ContentValidationError(base_path, filepath, str(e))]
 
@@ -278,7 +279,7 @@ def _validate_mc_order(
     errors = []
     for i in range(1, 4):
         if (file := base_path / filepath / f"MC_{i}" / "inpsd.dat").exists():
-            size_match = re.search(r"ncell\s+(\d+\s+\d+\s+\d+\s+)", file.read_text())
+            size_match = re.search(r"ncell\s+(\d+\s+\d+\s+\d+)", file.read_text())
             if size_match:
                 # to simplify comparing grid sizes we use the total number of cells
                 system_sizes.append(

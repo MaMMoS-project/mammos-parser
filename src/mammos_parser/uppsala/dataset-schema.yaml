@@ -75,7 +75,7 @@ file-schemas:
     files:
       - intrinsic_properties.yaml
     schema:
-      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation, unit: T}
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarization, unit: T}
       Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
       Ku: {type: mammos_entity.Entity, ontology_label: UniaxialAnisotropyConstant, unit: MJ/m3}  # check that the division by volume is not affected by unit cell volume
       Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature, unit: K}
@@ -87,8 +87,8 @@ file-schemas:
     schema:
       T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature, unit: K}
       Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
-      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation, unit: T}
-      U_L: {type: mammos_entity.Entity, ontology_label: BinderCumulant, unit: ''}  # 1 - 1/3 <M^4> / <M^2>^2
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarization, unit: T}
+      U_L: {type: mammos_entity.Entity, ontology_label: BinderCumulant, unit: ''}
       chi: {type: mammos_entity.Entity, ontology_label: MagneticSusceptibility, unit: ''}
       E: {type: mammos_entity.Entity, ontology_label: HelmholtzEnergy, unit: eV}
       Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity, unit: eV/K}  # dE/dT
