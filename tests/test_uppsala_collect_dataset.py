@@ -4,7 +4,7 @@ import mammos_entity as me
 import mammos_units as u
 import yaml
 
-from mammos_parser import uppsala
+from mammos_parser import __version__, uppsala
 
 
 def make_file(file_path: Path):
@@ -38,120 +38,156 @@ def test_complete_datasets(tmp_path: Path):
         "momfile",
         "posfile",
         "inpsd.dat",
-        "thermal.csv",
+        "thermal.yaml",
         "thermal.dat",
     ]:
         make_file(tmp_path / "UppASD" / "MC_1" / name)
 
     # all required files, first calculation mode
 
-    # content of intrinsic_properties.yaml and thermal.csv missing
+    # content of intrinsic_properties.yaml and thermal.yaml missing
     assert not uppsala.validate_dataset(tmp_path)
 
     # add required file content
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
+    me.EntityCollection(
         Js=me.Js(2, "T"),
         Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
         Tc=me.Tc(1000, "K"),
+    ).to_yaml(tmp_path / "intrinsic_properties.yaml")
+    (tmp_path / "UppASD" / "MC_1" / "inpsd.dat").write_text("ncell 10 10 10")
+    (tmp_path / "UppASD" / "MC_1" / "thermal.dat").write_text(
+        "T <M> <M^2> <M^4> U_{Binder} \\chi C_v(tot) <E> <E_{exc}> <E_{lsf}>\n"
+        "1 1 1 1 0.5 0.1 0.2 0.3 0.4 0.5\n"
     )
-    me.io.entities_to_file(
-        tmp_path / "UppASD/MC_1/thermal.csv",
+    # Numbers of thermal.dat and thermal.yaml do not match but the parser does not check
+    # for that because thermal.yaml is (supposed to be) auto-generated.
+    me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
-        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
-        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
-    )
+        Ms=me.Ms([500, 600, 700], "kA/m"),
+        Js=me.Js(
+            ([500, 600, 700] * u.kA / u.m).to(
+                "T", equivalencies=u.magnetic_flux_field()
+            )
+        ),
+        E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
+        Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
+        chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
+        U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
+    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
     with open(tmp_path / "metadata.yaml", "w") as f:
-        yaml.dump({"dataset_schema_version": 1, "mammos_parser_version": "0.1.0"}, f)
+        yaml.dump(
+            {"dataset_schema_version": 1, "mammos_parser_version": __version__}, f
+        )
     assert uppsala.validate_dataset(tmp_path)
 
-    # break yaml file
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
+    # break intrinsic_properties.yaml
+    # missing Tc
+    me.EntityCollection(
         Js=me.Js(2, "T"),
         Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
-    )
+        Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
+    ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     assert not uppsala.validate_dataset(tmp_path)
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
+    # Tc is a quantity
+    me.EntityCollection(
         Js=me.Js(2, "T"),
         Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
-        T=me.Tc(100, "K").q,
-    )
+        Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
+        Tc=me.Tc(100, "K").q,
+    ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     assert not uppsala.validate_dataset(tmp_path)
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
+    # Tc is a number
+    me.EntityCollection(
         Js=me.Js(2, "T"),
         Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
-        T=me.Tc(100, "K").value,
-    )
+        Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
+        Tc=me.Tc(100, "K").value,
+    ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     assert not uppsala.validate_dataset(tmp_path)
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
+    # Tc is of the wrong entity type
+    me.EntityCollection(
         Js=me.Js(2, "T"),
         Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
-        T=me.Js(2, "T"),
-    )
+        Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
+        Tc=me.Js(2, "T"),
+    ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     assert not uppsala.validate_dataset(tmp_path)
     # revert file contents for remaining checks
-    me.io.entities_to_file(
-        tmp_path / "intrinsic_properties.yaml",
+    me.EntityCollection(
         Js=me.Js(2, "T"),
         Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-        MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+        Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
         Tc=me.Tc(1000, "K"),
-    )
+    ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     assert uppsala.validate_dataset(tmp_path)
 
-    # break csv file
-    me.io.entities_to_file(
-        tmp_path / "UppASD/MC_1/thermal.csv",
+    # break thermal.yaml file
+    # missing Cv
+    me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
-        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
-    )
+        Ms=me.Ms([500, 600, 700], "kA/m"),
+        Js=me.Js([0.6, 0.7, 0.8], "T"),
+        E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
+        chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
+        U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
+    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
     assert not uppsala.validate_dataset(tmp_path)
-    me.io.entities_to_file(
-        tmp_path / "UppASD/MC_1/thermal.csv",
+    # Ms is a quantity
+    me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
-        Ms=me.Ms([5e5, 6e5, 7e5], "A/m").q,
-        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
-    )
+        Ms=me.Ms([500, 600, 700], "kA/m").q,
+        Js=me.Js([0.6, 0.7, 0.8], "T"),
+        E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
+        Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
+        chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
+        U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
+    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
     assert not uppsala.validate_dataset(tmp_path)
-    me.io.entities_to_file(
-        tmp_path / "UppASD/MC_1/thermal.csv",
+    # Ms is a value
+    me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
-        Ms=me.Ms([5e5, 6e5, 7e5], "A/m").value,
-        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
-    )
+        Ms=me.Ms([500, 600, 700], "kA/m").value,
+        Js=me.Js([0.6, 0.7, 0.8], "T"),
+        E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
+        Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
+        chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
+        U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
+    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
     assert not uppsala.validate_dataset(tmp_path)
-    me.io.entities_to_file(
-        tmp_path / "UppASD/MC_1/thermal.csv",
+    # Cv is the wrong entity
+    me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
-        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
+        Ms=me.Ms([500, 600, 700], "kA/m"),
+        Js=me.Js([0.6, 0.7, 0.8], "T"),
+        E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
         Cv=me.T([1, 10, 100]),
-    )
+        chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
+        U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
+    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
     assert not uppsala.validate_dataset(tmp_path)
     # revert file contents for remaining checks
-    me.io.entities_to_file(
-        tmp_path / "UppASD/MC_1/thermal.csv",
+    me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
-        Ms=me.Ms([5e5, 6e5, 7e5], "A/m"),
-        Cv=me.Entity("IsochoricHeatCapacity", [1.3e-24, 1.4e-24, 1.5e-24], "J/K"),
-    )
+        Ms=me.Ms([500, 600, 700], "kA/m"),
+        Js=me.Js([0.6, 0.7, 0.8], "T"),
+        E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
+        Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
+        chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
+        U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
+    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
     assert uppsala.validate_dataset(tmp_path)
 
     # break dataset-schema.yaml
+    # wrong dataset schema version
     with open(tmp_path / "metadata.yaml", "w") as f:
         yaml.dump({"dataset_schema_version": 2, "mammos_parser_version": "0.1.0"}, f)
     assert not uppsala.validate_dataset(tmp_path)
+    # wrong datatype for dataset schema version
     with open(tmp_path / "metadata.yaml", "w") as f:
         yaml.dump({"dataset_schema_version": "1", "mammos_parser_version": "0.1.0"}, f)
     assert not uppsala.validate_dataset(tmp_path)
+    # additional keys in metadata.yaml
     with open(tmp_path / "metadata.yaml", "w") as f:
         yaml.dump(
             {
@@ -162,6 +198,7 @@ def test_complete_datasets(tmp_path: Path):
             f,
         )
     assert not uppsala.validate_dataset(tmp_path)
+    # missing keys in metadata.yaml
     with open(tmp_path / "metadata.yaml", "w") as f:
         yaml.dump({"mammos_parser_version": "0.1.0"}, f)
     assert not uppsala.validate_dataset(tmp_path)
@@ -171,23 +208,22 @@ def test_complete_datasets(tmp_path: Path):
     assert uppsala.validate_dataset(tmp_path)
 
     # # overwrite with a file with incompatible Js and Ms
-    # me.io.entities_to_file(
-    #     tmp_path / "intrinsic_properties.yaml",
+    # me.EntityCollection(
     #     Js=me.Js(2, "T"),
     #     Ms=me.Ms(2, "A/m"),
-    #     MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+    #     Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
     #     Tc=me.Tc(1000, "K"),
-    # )
+    # ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     # assert not uppsala.validate_dataset(tmp_path)
 
     # # revert file for the remaining checks
-    # me.io.entities_to_file(
-    #     tmp_path / "intrinsic_properties.yaml",
+    # me.EntityCollection(
     #     Js=me.Js(2, "T"),
     #     Ms=me.Ms((2 * u.T).to("kA/m", equivalencies=u.magnetic_flux_field())),
-    #     MAE=me.Entity("MagnetocrystallineAnisotropyEnergy", 1.5, "MJ/m3"),
+    #     Ku=me.Entity("UniaxialAnisotropyConstant", 1.5, "MJ/m3"),
     #     Tc=me.Tc(1000, "K"),
-    # )
+    # ).to_yaml(tmp_path / "intrinsic_properties.yaml")
+
     # second calculation mode in addition: not allowed
     for dir_name in ["gs_x", "gs_z"]:
         make_file(tmp_path / "RSPt" / dir_name / "out_MF")
@@ -212,7 +248,7 @@ def test_complete_datasets(tmp_path: Path):
 
     assert uppsala.validate_dataset(tmp_path)
 
-    # uneven green.inp-* out-*
+    # non matching green.inp-* out-*
     make_file(tmp_path / "RSPt" / "Jij" / "out-2")
 
     assert not uppsala.validate_dataset(tmp_path)

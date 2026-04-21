@@ -1,10 +1,13 @@
 import collections
 import importlib
+import math
+import re
 from logging import getLogger
 from pathlib import Path
 
 import cerberus
 import mammos_entity as me
+import pandas as pd
 import yaml
 
 logger = getLogger(__name__)
@@ -160,49 +163,57 @@ def _validate_mammos_entity_file(
     base_path: Path, filepath: Path | str, schema: dict[str, dict]
 ) -> tuple[bool, list[ContentValidationError]]:
     try:
-        entity_collection = me.io.entities_from_file(base_path / filepath)
+        suffix = Path(filepath).suffix.lstrip(".")
+        entity_collection = getattr(me, f"from_{suffix}")(base_path / filepath)
     except Exception as e:
         return False, [ContentValidationError(base_path, filepath, str(e))]
 
     errors = []
-    seen = {"description"}  # ignore special element description
+    seen = set()
     for name, spec in schema.items():
-        if not hasattr(entity_collection, name):
+        seen.add(name)
+        if name not in entity_collection:
             errors.append(
-                ContentValidationError(
-                    base_path, filepath, f"missing property '{name}'"
-                )
+                ContentValidationError(base_path, filepath, f"missing element '{name}'")
             )
             continue
 
-        # TODO switch to dict interface entity_collection.entities once released
-        entity = getattr(entity_collection, name)
-        if not isinstance(entity, type_from_string(spec["type"])):
+        entity_like = entity_collection[name]
+        if not isinstance(entity_like, type_from_string(spec["type"])):
             errors.append(
                 ContentValidationError(
                     base_path,
                     filepath,
-                    "property '{name}' has type "
-                    f"'{type(entity).__module__}.{type(entity).__name__}', "
+                    f"element '{name}' has type "
+                    f"'{type(entity_like).__module__}.{type(entity_like).__name__}', "
                     f"expected '{spec['type']}'",
                 )
             )
             continue
 
-        if getattr(entity, "ontology_label", None) != spec["ontology_label"]:
+        if (
+            "ontology_label" in spec
+            and getattr(entity_like, "ontology_label", None) != spec["ontology_label"]
+        ):
             errors.append(
                 ContentValidationError(
                     base_path,
                     filepath,
-                    f"property '{name}' has label "
-                    f"'{getattr(entity, 'ontology_label', None)}', "
+                    f"element '{name}' has label "
+                    f"'{getattr(entity_like, 'ontology_label', None)}', "
                     f"expected '{spec['ontology_label']}'",
                 )
             )
+        if (unit := getattr(entity_like, "unit", None)) != spec["unit"]:
+            errors.append(
+                ContentValidationError(
+                    base_path,
+                    filepath,
+                    f"element '{name}' has unit '{unit}', expected '{spec['unit']}'",
+                )
+            )
 
-        seen.add(name)
-
-    extra = set(vars(entity_collection)) - seen
+    extra = set(name for name, _ in entity_collection) - seen
     if extra:
         for elem in sorted(extra):
             errors.append(
@@ -235,6 +246,73 @@ def _validate_yaml_file(
     return True, []
 
 
+def _validate_csv_file(
+    base_path: Path, filepath: Path | str, schema: dict[str, dict]
+) -> tuple[bool, list[ContentValidationError]]:
+    try:
+        data = pd.read_csv(base_path / filepath, sep=schema["sep"])
+    except Exception as e:
+        return False, [ContentValidationError(base_path, filepath, str(e))]
+
+    if (columns := list(data.columns)) == schema["columns"]:
+        return True, []
+
+    errors = []
+    if unknown := set(columns) - set(schema["columns"]):
+        for elem in unknown:
+            errors.append(
+                ContentValidationError(base_path, filepath, f"unknown column '{elem}")
+            )
+    if missing := set(schema["columns"]) - set(columns):
+        for elem in missing:
+            errors.append(
+                ContentValidationError(base_path, filepath, f"missing column '{elem}")
+            )
+
+    return False, errors
+
+
+def _validate_mc_order(
+    base_path: Path, filepath: Path | str, schema: dict[str, dict]
+) -> tuple[bool, list[ContentValidationError]]:
+    system_sizes = []
+    errors = []
+    for i in range(1, 4):
+        if (file := base_path / filepath / f"MC_{i}" / "inpsd.dat").exists():
+            size_match = re.search(r"ncell\s+(\d+\s+\d+\s+\d+)", file.read_text())
+            if size_match:
+                # to simplify comparing grid sizes we use the total number of cells
+                system_sizes.append(
+                    (i, math.prod(map(int, size_match.group(1).split())))
+                )
+            else:
+                errors.append(
+                    ContentValidationError(
+                        base_path,
+                        Path(filepath) / f"MC_{i}/inpsd.dat",
+                        "File does not contain a line 'ncell <number> <number> <number>"
+                        " ...'",
+                    )
+                )
+
+    if errors:
+        return False, errors
+
+    system_sizes_sorted = sorted(system_sizes, key=lambda t: t[1], reverse=True)
+    if system_sizes != system_sizes_sorted:
+        order = ", ".join(f"MC_{i}" for i, size in system_sizes_sorted)
+        error = ContentValidationError(
+            base_path,
+            filepath,
+            "MC directories are not ordered by system size (total number of cells) in "
+            f"descending order. The order by system size is currently: {order}\n"
+            "Rename the directories to bring them into the correct order.",
+        )
+        return False, [error]
+
+    return True, []
+
+
 def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:
     if not base_path.is_dir():
         logger.error("Base directory '%s' does not exist.", base_path)
@@ -252,7 +330,6 @@ def validate_filesystem_structure(base_path: Path, schema: dict) -> bool:
         report_errors(validator.errors, base_path.name)
         return False
     else:
-        logger.info("Dataset structure correct")
         return True
 
 
@@ -295,7 +372,7 @@ def validate_dataset(base_path: Path) -> bool:
     file_content_valid = validate_file_content(base_path, schema["file-schemas"])
 
     if filesystem_structure_valid and file_content_valid:
-        logger.info("Dataset is valid.")
+        logger.info("Dataset is valid")
         return True
     else:
         return False

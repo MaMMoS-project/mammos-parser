@@ -29,7 +29,7 @@ filesystem-schema:
         required: true
         schema:
           data: {type: file, required: true}
-          out_last: {type: file, required: true}
+          out_last: {type: file, required: true}  # output of self-consistent run
           hist: {type: file, excludes: out_MF, required: true}
           out_MF: {type: file, excludes: hist, required: true}
       # re-use definition of gs_x for gs_y (not required) and gs_z
@@ -60,30 +60,46 @@ filesystem-schema:
           momfile: {type: file, required: true}
           posfile: {type: file, required: true}
           inpsd.dat: {type: file, required: true}
-          thermal.csv: {type: file, required: true}
+          thermal.yaml: {type: file, required: true}
           thermal.dat: {type: file, required: true}
       # reuse definition of MC_1 but make the following two directories optional
       MC_2: {<<: *MC_dir, required: false}
       MC_3: {<<: *MC_dir, required: false}
       README.md: {type: file, required: false}
 file-schemas:
+  - validator: mc_order
+    files:
+      - UppASD  # operate on base directory to access all MC subdirectories
+    schema: {}  # the check is fully defined in mc_order, no schema is required
   - validator: mammos_entity_file
     files:
       - intrinsic_properties.yaml
     schema:
-      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarisation}
-      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
-      MAE: {type: mammos_entity.Entity, ontology_label: MagnetocrystallineAnisotropyEnergy}
-      Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature}
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarization, unit: T}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
+      Ku: {type: mammos_entity.Entity, ontology_label: UniaxialAnisotropyConstant, unit: MJ/m3}  # check that the division by volume is not affected by unit cell volume
+      Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature, unit: K}
   - validator: mammos_entity_file
     files:
-      - UppASD/MC_1/thermal.csv
-      - UppASD/MC_2/thermal.csv
-      - UppASD/MC_3/thermal.csv
+      - UppASD/MC_1/thermal.yaml
+      - UppASD/MC_2/thermal.yaml
+      - UppASD/MC_3/thermal.yaml
     schema:
-      T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature}
-      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization}
-      Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity}
+      T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature, unit: K}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
+      Js: {type: mammos_entity.Entity, ontology_label: SpontaneousMagneticPolarization, unit: T}
+      U_L: {type: mammos_entity.Entity, ontology_label: BinderCumulant, unit: ''}
+      chi: {type: mammos_entity.Entity, ontology_label: MagneticSusceptibility, unit: ''}
+      E: {type: mammos_entity.Entity, ontology_label: HelmholtzEnergy, unit: eV}
+      Cv: {type: mammos_entity.Entity, ontology_label: IsochoricHeatCapacity, unit: eV/K}  # dE/dT
+  - validator: csv_file
+    files:
+      - UppASD/MC_1/thermal.dat
+      - UppASD/MC_2/thermal.dat
+      - UppASD/MC_3/thermal.dat
+    schema:
+      sep: '\s+'
+      columns: ['T', '<M>', '<M^2>', '<M^4>', 'U_{Binder}', '\chi', 'C_v(tot)', '<E>', '<E_{exc}>', '<E_{lsf}>']
   - validator: yaml_file
     files:
       - metadata.yaml

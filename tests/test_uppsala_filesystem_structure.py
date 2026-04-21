@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from mammos_parser.uppsala._validate import load_schema, validate_filesystem_structure
+from mammos_parser.uppsala._validate import (
+    _validate_mc_order,
+    load_schema,
+    validate_filesystem_structure,
+)
 
 
 def make_tree(base: Path, structure: dict):
@@ -54,7 +58,7 @@ def valid_dataset():
                 "momfile": "FILE",
                 "posfile": "FILE",
                 "inpsd.dat": "FILE",
-                "thermal.csv": "FILE",
+                "thermal.yaml": "FILE",
                 "thermal.dat": "FILE",
             },
         },
@@ -133,3 +137,54 @@ def test_directory_instead_of_file(tmp_path, valid_dataset, schema):
 
     make_tree(tmp_path, valid_dataset)
     assert not validate_filesystem_structure(tmp_path, schema)
+
+
+def test_mc_order_correct(tmp_path):
+    for i, cell in [
+        (1, "30 30 30"),
+        (2, "20 20 20 comments are ignored"),
+    ]:
+        (tmp_path / f"MC_{i}").mkdir()
+        (tmp_path / f"MC_{i}" / "inpsd.dat").write_text(f"ncell {cell}")
+
+    dir_ok, errors = _validate_mc_order(tmp_path, ".", {})
+    assert dir_ok
+    assert errors == []
+
+
+def test_mc_order_missing_ncell(tmp_path):
+    (tmp_path / "MC_1").mkdir()
+    (tmp_path / "MC_1" / "inpsd.dat").touch()
+
+    dir_ok, errors = _validate_mc_order(tmp_path, ".", {})
+    assert not dir_ok
+    assert errors[0].file_path == Path("MC_1") / "inpsd.dat"
+    assert "File does not contain a line 'ncell" in errors[0].message
+
+
+def test_mc_order_wrong_ncell_format(tmp_path):
+    for i, cell in [
+        (1, "30 30 30"),
+        (2, "20 20"),
+    ]:
+        (tmp_path / f"MC_{i}").mkdir()
+        (tmp_path / f"MC_{i}" / "inpsd.dat").write_text(f"ncell {cell}")
+
+    dir_ok, errors = _validate_mc_order(tmp_path, ".", {})
+    assert not dir_ok
+    assert errors[0].file_path == Path("MC_2") / "inpsd.dat"
+    assert "File does not contain a line 'ncell" in errors[0].message
+
+
+def test_mc_order_wrong(tmp_path):
+    for i, cell in [
+        (1, "20 20 20"),
+        (2, "30 30 30"),
+        (3, "10 10 10"),
+    ]:
+        (tmp_path / f"MC_{i}").mkdir()
+        (tmp_path / f"MC_{i}" / "inpsd.dat").write_text(f"ncell {cell}")
+
+    dir_ok, errors = _validate_mc_order(tmp_path, ".", {})
+    assert not dir_ok
+    assert "MC_2, MC_1, MC_3" in errors[0].message
