@@ -360,7 +360,7 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
 
 
 def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
-    """Read thermal.dat and create thermal.csv."""
+    """Read thermal.dat and create thermal.yaml."""
     logger.info(f"Generating '{base_path}/UppASD/{mc_dirname}/thermal.yaml'")
     with open(base_path / f"UppASD/{mc_dirname}/momfile") as f:
         # count all non-empty lines
@@ -398,7 +398,7 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
 
 
 def generate_metadata_yaml(base_path: Path):
-    """Create dataset-schema.yaml."""
+    """Create metadata.yaml."""
     logger.info(f"Generating '{base_path}/metadata.yaml'")
     schema = load_schema()
     content = {
