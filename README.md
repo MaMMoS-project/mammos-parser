@@ -1,15 +1,6 @@
 # mammos-parser
 
-`mammos-parser` provides a CLI to validate datasets from Uppsala.
-
-Use it as follows:
-```console
-$ mammos-parser uppsala-data validate-dataset path/to/dataset
-INFO    Checking dataset 'path/to/dataset'
-...
-```
-
-To see all available options run `mammos-parser -h`.
+`mammos-parser` provides a command line tool to validate datasets generated as part of the [MaMMoS project](https://mammos-project.github.io).
 
 | Description   | Badge                                                                                                                                                                                    |
 |---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -21,6 +12,23 @@ To see all available options run `mammos-parser -h`.
 | License       | [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)                                                                                     |
 | DOI           | TODO                                                                                                                                                                                     |
 
+## Usage
+
+The parser currently provides two features:
+
+1. Validate a dataset: checks for the required file/directory structure according to the bundled schema.
+
+   ```console
+   mammos-parser uppsala-data validate-dataset path/to/dataset
+   ```
+
+2. Generate derived files (result files that contain aggregated/converted raw output).
+
+   ```console
+   mammos-parser uppsala-data generate-derived-files path/to/dataset
+   ```
+
+To see all available options run `mammos-parser [subcommand] --help`.
 
 ## Try it in the cloud
 Try `mammos-parser` without installing it locally by directly accessing it directly in the cloud
