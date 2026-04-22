@@ -4,8 +4,8 @@
 
 Use it as follows:
 ```console
-$ mammos-parser validate-uppsala path/do/dataset
-INFO    Reading uppsala dataset '...'
+$ mammos-parser uppsala-data validate-dataset path/to/dataset
+INFO    Checking dataset 'path/to/dataset'
 ...
 ```
 
