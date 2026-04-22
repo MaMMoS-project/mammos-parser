@@ -28,7 +28,11 @@ dependencies = [
   "cerberus>=1.3.5",
   "mammos-analysis",
   "mammos-entity>=0.13.0",
+  "numpy",
+  "pandas",
   "rich",
+  "scipy",
+  "pyyaml",
 ]
 
 [project.urls]
