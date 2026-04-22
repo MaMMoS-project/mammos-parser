@@ -17,11 +17,12 @@ def main():
     parser = argparse.ArgumentParser(
         prog="mammos-parser", description="Validate mammos datasets."
     )
-    parser.add_argument(
+    verbosity_group = parser.add_mutually_exclusive_group()
+    verbosity_group.add_argument(
         "--verbose", "-v", help="show verbose output", action="store_true"
     )
-    parser.add_argument(
-        "--quiet", "-q", help="show only wanings and errors", action="store_true"
+    verbosity_group.add_argument(
+        "--quiet", "-q", help="show only warnings and errors", action="store_true"
     )
 
     subparsers = parser.add_subparsers(dest="dataset", required=True)
