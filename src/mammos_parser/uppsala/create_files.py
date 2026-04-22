@@ -162,6 +162,8 @@ def _Tc_from_Cv(
     temperature_data: mammos_entity.EntityCollection, Tc_kuzmin: mammos_entity.Entity
 ) -> mammos_entity.Entity:
     peaks, _props = scipy.signal.find_peaks(temperature_data.Cv.value)
+    if len(peaks) == 0:
+        raise RuntimeError("Could not find peaks in Cv.")
     Tc_Cv = temperature_data.T.q[peaks]
     if len(Tc_Cv) > 1:
         logger.info(
