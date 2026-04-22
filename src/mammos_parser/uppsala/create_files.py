@@ -55,7 +55,7 @@ def compute_spontaneous_magnetization(
     # Use a dictionary to collect moments and directions because results for the same
     # atom+orbital information (used as key in the dict) can appear multiple times in
     # the file. We are only interested in the last occurence (last calculation step).
-    # Bu using a dict we automatically get the desired values.
+    # By using a dict we automatically get the desired values.
     moments: dict[str, float] = {}
     directions: dict[str, tuple[float, float, float]] = {}
 
@@ -64,22 +64,56 @@ def compute_spontaneous_magnetization(
             if "Total moment [J=L+S] (mu_B):" in line:
                 # line has content
                 # <KEY> Total moment ...: <moment_cartesian> <moment_spin_axis>
-                key = line.split()[0]
-                moment = line.split()[-2]
-                moments[key] = float(moment)
+                parts = line.split()
+                try:
+                    key = parts[0]
+                    moments[key] = float(parts[-2])
+                except (IndexError, ValueError) as e:
+                    raise RuntimeError(
+                        f"Malformed out_last '{file_path}': invalid total moment line:"
+                        f" {line.strip()}"
+                    ) from e
             elif "Direction of J (Cartesian):" in line:
                 # line has content
                 # <KEY> Direction of ...: <x> <y> <z>
-                key = line.split()[0]
-                direction = tuple(map(float, line.split()[-3:]))
+                parts = line.split()
+                try:
+                    key = parts[0]
+                    direction = tuple(map(float, parts[-3:]))
+                except (IndexError, ValueError) as e:
+                    raise RuntimeError(
+                        f"Malformed out_last '{file_path}': invalid direction line:"
+                        f" {line.strip()}"
+                    ) from e
+                if len(direction) != 3:
+                    raise RuntimeError(
+                        f"Malformed out_last '{file_path}': invalid direction line: "
+                        f"{line.strip()}"
+                    )
                 directions[key] = direction
+
+    if not moments:
+        raise RuntimeError(
+            f"Malformed out_last '{file_path}': no "
+            "'Total moment [J=L+S] (mu_B):' entries found."
+        )
 
     total_moment = 0 * u.mu_B
     for key, moment in moments.items():
+        if key not in directions:
+            raise RuntimeError(
+                f"Malformed out_last '{file_path}': missing "
+                f"'Direction of J (Cartesian)' entry for '{key}'."
+            )
         # Cartesian directions of the moment, orientation predominantly along one axis,
         # we are only interested in the sign.
         primary_directions = [dir_ for dir_ in directions[key] if abs(dir_) > 0.9]
-        assert len(primary_directions) == 1
+        if len(primary_directions) != 1:
+            raise RuntimeError(
+                f"Malformed out_last '{file_path}': expected exactly one predominant "
+                f"direction component (>0.9 in absolute value) for '{key}', got "
+                f"{directions[key]}."
+            )
         total_moment += moment * round(primary_directions[0]) * u.mu_B
 
     return me.Ms((total_moment / unit_cell_volume(file_path)).to("kA/m"))

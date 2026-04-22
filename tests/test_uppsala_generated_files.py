@@ -130,6 +130,37 @@ def test_compute_magnetization_multiple(tmp_path: Path) -> None:
     assert Ms.ontology_label == "SpontaneousMagnetization"
 
 
+def test_compute_magnetization_missing_direction_raises_runtimeerror(tmp_path: Path):
+    (tmp_path / "out_last").write_text(
+        dedent(
+            """
+            unit cell volume:  700.413751849785
+            ID:1 Total moment [J=L+S] (mu_B): 1.598663E-01 1.598663E-01
+            """
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="missing 'Direction of J \\(Cartesian\\)'"):
+        create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
+
+
+def test_compute_magnetization_ambiguous_direction_raises_runtimeerror(tmp_path: Path):
+    (tmp_path / "out_last").write_text(
+        dedent(
+            """
+            unit cell volume:  700.413751849785
+            ID:1 Total moment [J=L+S] (mu_B): 1.598663E-01 1.598663E-01
+            ID:1 Direction of J (Cartesian): 0.95000000 0.95000000 0.00000000
+            """
+        )
+    )
+
+    with pytest.raises(
+        RuntimeError, match="expected exactly one predominant direction component"
+    ):
+        create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
+
+
 def test_compute_Ku_total_energy_difference(tmp_path: Path) -> None:
     (tmp_path / "RSPt/gs_x/").mkdir(parents=True)
     (tmp_path / "RSPt/gs_x/out_last").write_text(
