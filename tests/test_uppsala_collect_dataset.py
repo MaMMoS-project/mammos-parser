@@ -38,14 +38,14 @@ def test_complete_datasets(tmp_path: Path):
         "momfile",
         "posfile",
         "inpsd.dat",
-        "thermal.yaml",
+        "thermal.csv",
         "thermal.dat",
     ]:
         make_file(tmp_path / "UppASD" / "MC_1" / name)
 
     # all required files, first calculation mode
 
-    # content of intrinsic_properties.yaml and thermal.yaml missing
+    # content of intrinsic_properties.yaml and thermal.csv missing
     assert not uppsala.validate_dataset(tmp_path)
 
     # add required file content
@@ -60,8 +60,8 @@ def test_complete_datasets(tmp_path: Path):
         "T <M> <M^2> <M^4> U_{Binder} \\chi C_v(tot) <E> <E_{exc}> <E_{lsf}>\n"
         "1 1 1 1 0.5 0.1 0.2 0.3 0.4 0.5\n"
     )
-    # Numbers of thermal.dat and thermal.yaml do not match but the parser does not check
-    # for that because thermal.yaml is (supposed to be) auto-generated.
+    # Numbers of thermal.dat and thermal.csv do not match but the parser does not check
+    # for that because thermal.csv is (supposed to be) auto-generated.
     me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
         Ms=me.Ms([500, 600, 700], "kA/m"),
@@ -74,7 +74,7 @@ def test_complete_datasets(tmp_path: Path):
         Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
         chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
         U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
-    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
+    ).to_csv(tmp_path / "UppASD/MC_1/thermal.csv")
     with open(tmp_path / "metadata.yaml", "w") as f:
         yaml.dump(
             {"dataset_schema_version": 1, "mammos_parser_version": __version__}, f
@@ -122,7 +122,7 @@ def test_complete_datasets(tmp_path: Path):
     ).to_yaml(tmp_path / "intrinsic_properties.yaml")
     assert uppsala.validate_dataset(tmp_path)
 
-    # break thermal.yaml file
+    # break thermal.csv file
     # missing Cv
     me.EntityCollection(
         T=me.T([1, 10, 100], "K"),
@@ -131,7 +131,7 @@ def test_complete_datasets(tmp_path: Path):
         E=me.Entity("HelmholtzEnergy", [1.0, 2.0, 3.0], "eV"),
         chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
         U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
-    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
+    ).to_csv(tmp_path / "UppASD/MC_1/thermal.csv")
     assert not uppsala.validate_dataset(tmp_path)
     # Ms is a quantity
     me.EntityCollection(
@@ -142,7 +142,7 @@ def test_complete_datasets(tmp_path: Path):
         Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
         chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
         U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
-    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
+    ).to_csv(tmp_path / "UppASD/MC_1/thermal.csv")
     assert not uppsala.validate_dataset(tmp_path)
     # Ms is a value
     me.EntityCollection(
@@ -153,7 +153,7 @@ def test_complete_datasets(tmp_path: Path):
         Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
         chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
         U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
-    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
+    ).to_csv(tmp_path / "UppASD/MC_1/thermal.csv")
     assert not uppsala.validate_dataset(tmp_path)
     # Cv is the wrong entity
     me.EntityCollection(
@@ -164,7 +164,7 @@ def test_complete_datasets(tmp_path: Path):
         Cv=me.T([1, 10, 100]),
         chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
         U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
-    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
+    ).to_csv(tmp_path / "UppASD/MC_1/thermal.csv")
     assert not uppsala.validate_dataset(tmp_path)
     # revert file contents for remaining checks
     me.EntityCollection(
@@ -175,7 +175,7 @@ def test_complete_datasets(tmp_path: Path):
         Cv=me.Entity("IsochoricHeatCapacity", [0.1, 0.2, 0.3], "eV/K"),
         chi=me.Entity("MagneticSusceptibility", [1.0, 2.0, 3.0]),
         U_L=me.Entity("BinderCumulant", [0.7, 0.6, 0.5]),
-    ).to_yaml(tmp_path / "UppASD/MC_1/thermal.yaml")
+    ).to_csv(tmp_path / "UppASD/MC_1/thermal.csv")
     assert uppsala.validate_dataset(tmp_path)
 
     # break dataset-schema.yaml

@@ -59,7 +59,7 @@ def valid_dataset():
                 "momfile": "FILE",
                 "posfile": "FILE",
                 "inpsd.dat": "FILE",
-                "thermal.yaml": "FILE",
+                "thermal.csv": "FILE",
                 "thermal.dat": "FILE",
             },
         },

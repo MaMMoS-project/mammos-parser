@@ -489,8 +489,8 @@ def test_compute_Tc_without_MC_2_returns_Cv_peak(tmp_path: Path):
     U_L = me.Entity("BinderCumulant", [0.7, 0.7, 0.7, 0.7, 0.4, 0.2, 0.2])
 
     (tmp_path / "UppASD" / "MC_1").mkdir(parents=True)
-    me.EntityCollection(T=T, Ms=Ms, Cv=Cv, U_L=U_L).to_yaml(
-        tmp_path / "UppASD/MC_1/thermal.yaml"
+    me.EntityCollection(T=T, Ms=Ms, Cv=Cv, U_L=U_L).to_csv(
+        tmp_path / "UppASD/MC_1/thermal.csv"
     )
 
     Tc = create_files.compute_Tc(tmp_path)
@@ -513,13 +513,13 @@ def test_compute_Tc_with_MC_2_returns_binder_crossing(tmp_path: Path):
     U_L_2 = me.Entity("BinderCumulant", [0.6, 0.6, 0.6, 0.3, 0.3])
 
     (tmp_path / "UppASD" / "MC_1").mkdir(parents=True)
-    me.EntityCollection(T=T_1, Ms=Ms_1, Cv=Cv_1, U_L=U_L_1).to_yaml(
-        tmp_path / "UppASD/MC_1/thermal.yaml"
+    me.EntityCollection(T=T_1, Ms=Ms_1, Cv=Cv_1, U_L=U_L_1).to_csv(
+        tmp_path / "UppASD/MC_1/thermal.csv"
     )
 
     (tmp_path / "UppASD" / "MC_2").mkdir()
-    me.EntityCollection(T=T_2, Ms=Ms_2, Cv=Cv_2, U_L=U_L_2).to_yaml(
-        tmp_path / "UppASD/MC_2/thermal.yaml"
+    me.EntityCollection(T=T_2, Ms=Ms_2, Cv=Cv_2, U_L=U_L_2).to_csv(
+        tmp_path / "UppASD/MC_2/thermal.csv"
     )
 
     Tc = create_files.compute_Tc(tmp_path)

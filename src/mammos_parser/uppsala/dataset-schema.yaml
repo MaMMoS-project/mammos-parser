@@ -61,7 +61,7 @@ filesystem-schema:
           momfile: {type: file, required: true}
           posfile: {type: file, required: true}
           inpsd.dat: {type: file, required: true}
-          thermal.yaml: {type: file, required: true}
+          thermal.csv: {type: file, required: true}
           thermal.dat: {type: file, required: true}
       # reuse definition of MC_1 but make the following two directories optional
       MC_2: {<<: *MC_dir, required: false}
@@ -82,9 +82,9 @@ file-schemas:
       Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature, unit: K}
   - validator: mammos_entity_file
     files:
-      - UppASD/MC_1/thermal.yaml
-      - UppASD/MC_2/thermal.yaml
-      - UppASD/MC_3/thermal.yaml
+      - UppASD/MC_1/thermal.csv
+      - UppASD/MC_2/thermal.csv
+      - UppASD/MC_3/thermal.csv
     schema:
       T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature, unit: K}
       Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}

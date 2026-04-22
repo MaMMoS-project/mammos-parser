@@ -313,14 +313,14 @@ def _Tc_from_U_L(
 
 def compute_Tc(base_path: Path) -> mammos_entity.Entity:
     """Compute Tc from crossing of Binder cumulants or specific heat."""
-    temperature_data = me.from_yaml(base_path / "UppASD/MC_1/thermal.yaml")
+    temperature_data = me.from_csv(base_path / "UppASD/MC_1/thermal.csv")
     Tc_kuzmin = _Tc_from_kuzmin(temperature_data)
     Tc_Cv = _Tc_from_Cv(temperature_data, Tc_kuzmin)
 
     if (base_path / "UppASD/MC_2").exists():
         Tc_U_L = _Tc_from_U_L(
             temperature_data,
-            me.from_yaml(base_path / "UppASD/MC_2/thermal.yaml"),
+            me.from_csv(base_path / "UppASD/MC_2/thermal.csv"),
             Tc_kuzmin,
             Tc_Cv,
         )
@@ -360,8 +360,8 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
 
 
 def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
-    """Read thermal.dat and create thermal.yaml."""
-    logger.info(f"Generating '{base_path}/UppASD/{mc_dirname}/thermal.yaml'")
+    """Read thermal.dat and create thermal.csv."""
+    logger.info(f"Generating '{base_path}/UppASD/{mc_dirname}/thermal.csv'")
     with open(base_path / f"UppASD/{mc_dirname}/momfile") as f:
         # count all non-empty lines
         atom_count = len(list(filter(lambda line: line.strip(), f.readlines())))
@@ -400,7 +400,7 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
         Cv=Cv,
         chi=chi,
         U_L=U_L,
-    ).to_yaml(base_path / f"UppASD/{mc_dirname}/thermal.yaml")
+    ).to_csv(base_path / f"UppASD/{mc_dirname}/thermal.csv")
 
 
 def generate_metadata_yaml(base_path: Path):
