@@ -188,6 +188,16 @@ def test_mc_order_missing_ncell(tmp_path):
     assert "File does not contain a line 'ncell" in errors[0].message
 
 
+def test_mc_order_unreadable_file(tmp_path):
+    (tmp_path / "MC_1").mkdir()
+    (tmp_path / "MC_1" / "inpsd.dat").write_bytes(b"\xff\xfe\x00\x00")
+
+    dir_ok, errors = _validate_mc_order(tmp_path, ".", {})
+    assert not dir_ok
+    assert errors[0].file_path == Path("MC_1") / "inpsd.dat"
+    assert "Could not read file" in errors[0].message
+
+
 def test_mc_order_wrong_ncell_format(tmp_path):
     for i, cell in [
         (1, "30 30 30"),

@@ -326,7 +326,19 @@ def _validate_mc_order(
     errors = []
     for i in range(1, 4):
         if (file := base_path / filepath / f"MC_{i}" / "inpsd.dat").exists():
-            size_match = re.search(r"ncell\s+(\d+\s+\d+\s+\d+)", file.read_text())
+            try:
+                file_content = file.read_text()
+            except Exception as e:
+                errors.append(
+                    ContentValidationError(
+                        base_path,
+                        Path(filepath) / f"MC_{i}/inpsd.dat",
+                        f"Could not read file: {e}",
+                    )
+                )
+                continue
+
+            size_match = re.search(r"ncell\s+(\d+\s+\d+\s+\d+)", file_content)
             if size_match:
                 # to simplify comparing grid sizes we use the total number of cells
                 system_sizes.append(
