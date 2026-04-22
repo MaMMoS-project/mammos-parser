@@ -90,6 +90,42 @@ class DatasetValidator(cerberus.Validator):
             self._error(field, f"missing file '{prefix_1}{suffix}'")
         return len(missing_1) == 0 and len(missing_2) == 0
 
+    def _validate_consistent_gs_mode(self, constraint, field, value):
+        """Check that all gs_* directories use the same calculation mode.
+
+        The rule's arguments are validated against this schema:
+        {"type": "boolean"}
+        """
+        if not constraint or not isinstance(value, collections.abc.Mapping):
+            return
+
+        modes = {}
+        for gs_dir in ["gs_x", "gs_y", "gs_z"]:
+            if gs_dir not in value or not isinstance(
+                value[gs_dir], collections.abc.Mapping
+            ):
+                continue
+
+            has_hist = "hist" in value[gs_dir]
+            has_out_mf = "out_MF" in value[gs_dir]
+            if has_hist and not has_out_mf:
+                modes[gs_dir] = "hist"
+            elif has_out_mf and not has_hist:
+                modes[gs_dir] = "out_MF"
+
+        if len(set(modes.values())) <= 1:
+            return
+
+        axes_by_mode = ", ".join(
+            f"{gs_dir}: {mode}" for gs_dir, mode in sorted(modes.items())
+        )
+        self._error(
+            field,
+            "mixed calculation modes across gs directories are not allowed; "
+            f"use either 'hist' for all axes or 'out_MF' for all axes. Found: "
+            f"{axes_by_mode}",
+        )
+
 
 class FileSystemErrorHandler(cerberus.errors.BasicErrorHandler):
     messages = cerberus.errors.BasicErrorHandler.messages.copy()

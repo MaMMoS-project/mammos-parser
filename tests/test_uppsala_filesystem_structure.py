@@ -42,7 +42,7 @@ def valid_dataset():
             "gs_z": {
                 "data": "FILE",
                 "out_last": "FILE",
-                "out_MF": "FILE",
+                "hist": "FILE",
             },
             "Jij": {
                 "data": "FILE",
@@ -131,6 +131,14 @@ def test_optional_gs_y(tmp_path, valid_dataset, schema):
 
     make_tree(tmp_path, valid_dataset)
     assert validate_filesystem_structure(tmp_path, schema)
+
+
+def test_mixed_rspt_modes_across_axes_are_rejected(tmp_path, valid_dataset, schema):
+    valid_dataset["RSPt"]["gs_z"].pop("hist")
+    valid_dataset["RSPt"]["gs_z"]["out_MF"] = "FILE"
+
+    make_tree(tmp_path, valid_dataset)
+    assert not validate_filesystem_structure(tmp_path, schema)
 
 
 def test_directory_instead_of_file(tmp_path, valid_dataset, schema):

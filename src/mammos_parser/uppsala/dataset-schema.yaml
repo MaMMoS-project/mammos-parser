@@ -13,6 +13,7 @@ filesystem-schema:
   RSPt:
     type: directory
     required: true
+    consistent_gs_mode: true  # all gs_* must either have hist OR out_MF
     schema:
       README.md: {type: file, required: false}
       common_input:
