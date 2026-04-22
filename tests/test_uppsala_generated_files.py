@@ -161,6 +161,23 @@ def test_compute_magnetization_ambiguous_direction_raises_runtimeerror(tmp_path:
         create_files.compute_spontaneous_magnetization(tmp_path / "out_last")
 
 
+def test_generate_mc_output_requires_at_least_two_temperature_points(tmp_path: Path):
+    (tmp_path / "RSPt/gs_x").mkdir(parents=True)
+    (tmp_path / "RSPt/gs_x/out_last").write_text(
+        "unit cell volume:  700.413751849785\n"
+    )
+
+    (tmp_path / "UppASD/MC_1").mkdir(parents=True)
+    (tmp_path / "UppASD/MC_1/momfile").write_text("1 1 1 1 1 1\n")
+    (tmp_path / "UppASD/MC_1/thermal.dat").write_text(
+        "T <M> <M^2> <M^4> U_{Binder} \\chi C_v(tot) <E> <E_{exc}> <E_{lsf}>\n"
+        "10 1 1 1 0.5 0.1 0.2 0.3 0.4 0.5\n"
+    )
+
+    with pytest.raises(RuntimeError, match="need at least 2 temperature points"):
+        create_files.generate_mc_output(tmp_path, "MC_1")
+
+
 def test_compute_Ku_total_energy_difference(tmp_path: Path) -> None:
     (tmp_path / "RSPt/gs_x/").mkdir(parents=True)
     (tmp_path / "RSPt/gs_x/out_last").write_text(

@@ -370,6 +370,12 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
     volume = unit_cell_volume(base_path / "RSPt/gs_x/out_last")
 
     raw_data = pd.read_csv(base_path / f"UppASD/{mc_dirname}/thermal.dat", sep=r"\s+")
+    if len(raw_data.index) < 2:
+        raise RuntimeError(
+            "Cannot compute Cv from "
+            f"'{base_path}/UppASD/{mc_dirname}/thermal.dat': need at least 2 "
+            f"temperature points, got {len(raw_data.index)}."
+        )
 
     T = me.T(raw_data["T"], "K")
     M_per_atom = raw_data["<M>"].to_numpy() * u.mu_B
