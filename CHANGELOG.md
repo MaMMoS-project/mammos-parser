@@ -6,4 +6,8 @@ This project uses [towncrier](https://towncrier.readthedocs.io/) and the changes
 
 <!-- towncrier release notes start -->
 
+## [mammos-parser 0.1.0](https://github.com/MaMMoS-project/mammos-parser/tree/0.1.0) – 2026-04-22
 
+### Added
+
+- Parser for Uppsala datasets: the command line tool can validate a dataset and generate derived files (such as intrinsic_properties.yaml)
