@@ -208,7 +208,7 @@ def _Tc_from_Cv(
         idx = np.argmin(np.abs(Tc_Cv - Tc_kuzmin.q))
         Tc_Cv = Tc_Cv[idx]
 
-    Tc_Cv = me.Tc(Tc_Cv, description="Tc from peak in specific heat")
+    Tc_Cv = me.Tc(Tc_Cv.item(), description="Tc from peak in specific heat")
     logger.info("Tc from Cv peak: %s", Tc_Cv)
     peak_Cv = temperature_data.Cv.q[
         np.argmin(np.abs(temperature_data.T.value - Tc_Cv.value))
