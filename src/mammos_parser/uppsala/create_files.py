@@ -187,26 +187,87 @@ def _Tc_from_U_L(
     Tc_kuzmin: mammos_entity.Entity,
     Tc_Cv: mammos_entity.Entity,
 ) -> mammos_entity.Entity:
-    U_L1 = scipy.interpolate.make_interp_spline(
-        temperature_data_1.T.q, temperature_data_1.U_L.q, k=1
-    )
-    U_L2 = scipy.interpolate.make_interp_spline(
-        temperature_data_2.T.q, temperature_data_2.U_L.q, k=1
-    )
+    # Determine crossings of two piecewise-linear curves on potentially different
+    # temperature grids.
+    t_1 = np.atleast_1d(temperature_data_1.T.value)
+    t_2 = np.atleast_1d(temperature_data_2.T.value)
+    u_l_1 = np.atleast_1d(temperature_data_1.U_L.value)
+    u_l_2 = np.atleast_1d(temperature_data_2.U_L.value)
 
-    # Compute crossing starting from both Tc_kuzmin and Tc_Cv; both should lead to the
-    # same result. If they don't, that is a good indication that something failed.
-    crossings = scipy.optimize.fsolve(
-        lambda t: U_L1(t) - U_L2(t), [Tc_kuzmin.value, Tc_Cv.value]
-    )
-    if not np.isclose(crossings[0], crossings[1]):
+    order_1 = np.argsort(t_1)
+    order_2 = np.argsort(t_2)
+    t_1, u_l_1 = t_1[order_1], u_l_1[order_1]
+    t_2, u_l_2 = t_2[order_2], u_l_2[order_2]
+
+    if np.any(np.diff(t_1) == 0) or np.any(np.diff(t_2) == 0):
+        raise RuntimeError(
+            "Cannot determine Tc from Binder cumulant: duplicated temperatures in input"
+        )
+
+    t_min = max(t_1[0], t_2[0])
+    t_max = min(t_1[-1], t_2[-1])
+    if t_min >= t_max:
+        raise RuntimeError(
+            "Cannot determine Tc from Binder cumulant: no overlapping T range"
+        )
+
+    knots = np.unique(np.concatenate([t_1, t_2]))
+    knots = knots[(knots >= t_min) & (knots <= t_max)]
+    if len(knots) < 2:
+        raise RuntimeError(
+            "Cannot determine Tc from Binder cumulant: insufficient overlapping T "
+            f"points: {knots}"
+        )
+
+    # Linear interpolation on each curve at all breakpoints of either curve.
+    delta_u_l = np.interp(knots, t_1, u_l_1) - np.interp(knots, t_2, u_l_2)
+    atol = 1e-12
+
+    roots: list[float] = []
+    for i in range(len(knots) - 1):
+        left = knots[i]
+        right = knots[i + 1]
+        delta_left = delta_u_l[i]
+        delta_right = delta_u_l[i + 1]
+
+        if np.isclose(delta_left, 0.0, atol=atol):
+            # delta_right == 0 will be dealt with in the next iteration
+            roots.append(left)
+        elif delta_left * delta_right < 0:
+            # for the segment
+            # delta_ul(x) = delta_left + (delta_right - delta_left) / (right - left) * x
+            # crossing at delta_ul(x) = 0
+            # -> x = -delta_left * (right - left) / (delta_right - delta_left)
+            roots.append(
+                left - delta_left * (right - left) / (delta_right - delta_left)
+            )
+
+    if np.isclose(delta_u_l[-1], 0.0, atol=atol):
+        roots.append(knots[-1])
+
+    if not roots:
+        raise RuntimeError(
+            "Cannot determine Tc from Binder cumulant: U_L curves do not cross in the"
+            " overlapping temperature range."
+        )
+
+    roots = np.unique(roots)
+
+    # Select root nearest to each prior estimate. If the priors point to different
+    # crossings, the input data are ambiguous and we fail.
+    crossing_kuzmin_id = np.argmin(np.abs(roots - Tc_kuzmin.value))
+    crossing_cv_id = np.argmin(np.abs(roots - Tc_Cv.value))
+    crossing_kuzmin = roots[crossing_kuzmin_id]
+    crossing_cv = roots[crossing_cv_id]
+    if crossing_kuzmin_id != crossing_cv_id:
         raise RuntimeError(
             "Got two different Tc estimates from Binder cumulant:\n"
-            f"With initial guess from Kuzmin ({Tc_kuzmin}) got: {crossings[0]}\n"
-            f"With initial guess from Cv ({Tc_Cv}) got: {crossings[1]}"
+            f"With initial guess from Kuzmin ({Tc_kuzmin}) got: {crossing_kuzmin}\n"
+            f"With initial guess from Cv ({Tc_Cv}) got: {crossing_cv}"
         )
+
     Tc_U_L = me.Tc(
-        crossings[0],
+        crossing_kuzmin,
         unit=temperature_data_1.T.unit,
         description="Tc from crossing of Binder cumulant from MC_1 and MC_2.",
     )
@@ -218,12 +279,14 @@ def compute_Tc(base_path: Path) -> mammos_entity.Entity:
     """Compute Tc from crossing of Binder cumulants or specific heat."""
     temperature_data = me.from_yaml(base_path / "UppASD/MC_1/thermal.yaml")
     Tc_kuzmin = _Tc_from_kuzmin(temperature_data)
-    Tc_Cv = _Tc_from_Cv(temperature_data)
+    Tc_Cv = _Tc_from_Cv(temperature_data, Tc_kuzmin)
 
     if (base_path / "UppASD/MC_2").exists():
         Tc_U_L = _Tc_from_U_L(
             temperature_data,
-            me.from_yaml(base_path / "UppASD/MC_1/thermal.yaml"),
+            me.from_yaml(base_path / "UppASD/MC_2/thermal.yaml"),
+            Tc_kuzmin,
+            Tc_Cv,
         )
     else:
         Tc_U_L = None
@@ -265,7 +328,7 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
     logger.info(f"Generating '{base_path}/UppASD/{mc_dirname}/thermal.yaml'")
     with open(base_path / f"UppASD/{mc_dirname}/momfile") as f:
         # count all non-empty lines
-        atom_count = len(list(filter(lambda line: line, f.readlines())))
+        atom_count = len(list(filter(lambda line: line.strip(), f.readlines())))
     logger.info("Number of atoms from momfile: %i", atom_count)
 
     volume = unit_cell_volume(base_path / "RSPt/gs_x/out_last")
