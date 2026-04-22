@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from mammos_parser.uppsala._validate import (
+    _validate_csv_file,
     _validate_mc_order,
     load_schema,
     validate_filesystem_structure,
@@ -137,6 +138,23 @@ def test_directory_instead_of_file(tmp_path, valid_dataset, schema):
 
     make_tree(tmp_path, valid_dataset)
     assert not validate_filesystem_structure(tmp_path, schema)
+
+
+def test_csv_column_order_mismatch_reports_error(tmp_path):
+    (tmp_path / "thermal.dat").write_text("b a\n1 2\n")
+
+    file_ok, errors = _validate_csv_file(
+        tmp_path,
+        "thermal.dat",
+        {
+            "sep": r"\s+",
+            "columns": ["a", "b"],
+        },
+    )
+    assert not file_ok
+    assert len(errors) == 1
+    assert "columns are in the wrong order" in errors[0].message
+    assert "expected ['a', 'b']" in errors[0].message
 
 
 def test_mc_order_correct(tmp_path):

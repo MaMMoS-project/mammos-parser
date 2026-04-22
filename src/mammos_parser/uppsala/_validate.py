@@ -254,20 +254,31 @@ def _validate_csv_file(
     except Exception as e:
         return False, [ContentValidationError(base_path, filepath, str(e))]
 
-    if (columns := list(data.columns)) == schema["columns"]:
+    columns = list(data.columns)
+    expected_columns = schema["columns"]
+    if columns == expected_columns:
         return True, []
 
     errors = []
-    if unknown := set(columns) - set(schema["columns"]):
+    if unknown := sorted(set(columns) - set(expected_columns)):
         for elem in unknown:
             errors.append(
                 ContentValidationError(base_path, filepath, f"unknown column '{elem}'")
             )
-    if missing := set(schema["columns"]) - set(columns):
+    if missing := sorted(set(expected_columns) - set(columns)):
         for elem in missing:
             errors.append(
                 ContentValidationError(base_path, filepath, f"missing column '{elem}'")
             )
+    if not errors:
+        errors.append(
+            ContentValidationError(
+                base_path,
+                filepath,
+                "columns are in the wrong order: "
+                f"expected {expected_columns}, got {columns}",
+            )
+        )
 
     return False, errors
 
