@@ -116,7 +116,7 @@ def compute_spontaneous_magnetization(
             )
         total_moment += moment * round(primary_directions[0]) * u.mu_B
 
-    return me.Ms((total_moment / unit_cell_volume(file_path)).to("kA/m"))
+    return me.Ms(round((total_moment / unit_cell_volume(file_path)).to("kA/m"), 1))
 
 
 def compute_Ku(
@@ -176,7 +176,7 @@ def compute_Ku(
 
     return me.Entity(
         "UniaxialAnisotropyConstant",
-        (delta_e / vol).to("MJ/m3"),
+        round((delta_e / vol).to("MJ/m3"), 2),
         description=description,
     )
 
@@ -354,7 +354,7 @@ def generate_intrinsic_properties_yaml(base_path: Path) -> None:
     """Collect intrinsic properties."""
     logger.info(f"Generating '{base_path}/intrinsic_properties.yaml'")
     Ms = compute_spontaneous_magnetization(base_path / "RSPt/gs_x/out_last")
-    Js = me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field()))
+    Js = me.Js(round(Ms.q.to("T", equivalencies=u.magnetic_flux_field()), 3))
     Ku = compute_Ku(base_path)
     Tc = compute_Tc(base_path)
 
@@ -387,23 +387,23 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
 
     T = me.T(raw_data["T"], "K")
     M_per_atom = raw_data["<M>"].to_numpy() * u.mu_B
-    Ms = me.Ms((M_per_atom * atom_count / volume).to("kA/m"))
+    Ms = me.Ms(round((M_per_atom * atom_count / volume).to("kA/m"), 1))
     E_per_atom = raw_data["<E>"].to_numpy() * u.mRy
-    E = me.Entity("HelmholtzEnergy", (E_per_atom * atom_count).to("eV"))
+    E = me.Entity("HelmholtzEnergy", round((E_per_atom * atom_count).to("eV"), 6))
 
     Cv = me.Entity(
         "IsochoricHeatCapacity",
-        np.gradient(E.q, T.q),
+        round(np.gradient(E.q, T.q), 6),
         description="Computed as derivative dE/dT.",
     )
-    U_L = me.Entity("BinderCumulant", raw_data["U_{Binder}"].to_numpy())
-    chi = me.Entity("MagneticSusceptibility", raw_data[r"\chi"])
+    U_L = me.Entity("BinderCumulant", round(raw_data["U_{Binder}"].to_numpy(), 6))
+    chi = me.Entity("MagneticSusceptibility", round(raw_data[r"\chi"], 6))
 
     me.EntityCollection(
         description="Temperature-dependent quantities computed with UppASD",
         T=T,
         Ms=Ms,
-        Js=me.Js(Ms.q.to("T", equivalencies=u.magnetic_flux_field())),
+        Js=me.Js(round(Ms.q.to("T", equivalencies=u.magnetic_flux_field()), 3)),
         E=E,
         Cv=Cv,
         chi=chi,
