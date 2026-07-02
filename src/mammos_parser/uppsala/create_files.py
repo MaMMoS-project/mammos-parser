@@ -396,8 +396,8 @@ def generate_mc_output(base_path: Path, mc_dirname: str) -> None:
         round(np.gradient(E.q, T.q), 6),
         description="Computed as derivative dE/dT.",
     )
-    U_L = me.Entity("BinderCumulant", round(raw_data["U_{Binder}"].to_numpy(), 6))
-    chi = me.Entity("MagneticSusceptibility", round(raw_data[r"\chi"], 6))
+    U_L = me.Entity("BinderCumulant", raw_data["U_{Binder}"].to_numpy().round(6))
+    chi = me.Entity("MagneticSusceptibility", raw_data[r"\chi"].to_numpy().round(6))
 
     me.EntityCollection(
         description="Temperature-dependent quantities computed with UppASD",
