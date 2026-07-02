@@ -37,6 +37,12 @@ def main():
     parser_uppsala.add_argument(
         "path", help="base directory containing the dataset", type=Path
     )
+    parser_uppsala.add_argument(
+        "--save-kuzmin-plot",
+        action="store_true",
+        default=False,
+        dest="save_kuzmin_plot",
+    )
 
     args = parser.parse_args()
 
@@ -59,4 +65,4 @@ def main():
             sys.exit(1)
     elif args.mode == "generate-derived-files":
         path = args.path
-        uppsala.generate_derived_files(path)
+        uppsala.generate_derived_files(path, save_kuzmin_plot=args.save_kuzmin_plot)

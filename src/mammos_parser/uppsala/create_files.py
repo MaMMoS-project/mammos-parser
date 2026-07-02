@@ -183,16 +183,18 @@ def compute_Ku(
 
 def _Tc_from_kuzmin(
     temperature_data: mammos_entity.EntityCollection,
+    save_kuzmin_plot: bool = False,
 ) -> mammos_entity.Entity:
     kuzmin_properties = mammos_analysis.kuzmin.kuzmin_properties(
         T=temperature_data.T, Ms=temperature_data.Ms
     )
 
-    import matplotlib.pyplot as plt
+    if save_kuzmin_plot:
+        import matplotlib.pyplot as plt
 
-    kuzmin_properties.Ms.plot()
-    plt.plot(temperature_data.T.value, temperature_data.Ms.q.to("kA/m"), "o")
-    plt.savefig("kuzmin-fit.pdf")
+        kuzmin_properties.Ms.plot()
+        plt.plot(temperature_data.T.value, temperature_data.Ms.q.to("kA/m"), "o")
+        plt.savefig("kuzmin-fit.pdf")
 
     Tc_kuzmin = kuzmin_properties.Tc
     Tc_kuzmin.description = "Tc from Kuz'min fit."
@@ -319,10 +321,10 @@ def _Tc_from_U_L(
     return Tc_U_L
 
 
-def compute_Tc(base_path: Path) -> mammos_entity.Entity:
+def compute_Tc(base_path: Path, save_kuzmin_plot: bool) -> mammos_entity.Entity:
     """Compute Tc from crossing of Binder cumulants or specific heat."""
     temperature_data = me.from_csv(base_path / "UppASD/MC_1/thermal.csv")
-    Tc_kuzmin = _Tc_from_kuzmin(temperature_data)
+    Tc_kuzmin = _Tc_from_kuzmin(temperature_data, save_kuzmin_plot=save_kuzmin_plot)
     Tc_Cv = _Tc_from_Cv(temperature_data, Tc_kuzmin)
 
     if (base_path / "UppASD/MC_2").exists():
@@ -350,13 +352,13 @@ def compute_Tc(base_path: Path) -> mammos_entity.Entity:
     return Tc_U_L or Tc_Cv
 
 
-def generate_intrinsic_properties_yaml(base_path: Path) -> None:
+def generate_intrinsic_properties_yaml(base_path: Path, save_kuzmin_plot: bool) -> None:
     """Collect intrinsic properties."""
     logger.info(f"Generating '{base_path}/intrinsic_properties.yaml'")
     Ms = compute_spontaneous_magnetization(base_path / "RSPt/gs_x/out_last")
     Js = me.Js(round(Ms.q.to("T", equivalencies=u.magnetic_flux_field()), 3))
     Ku = compute_Ku(base_path)
-    Tc = compute_Tc(base_path)
+    Tc = compute_Tc(base_path, save_kuzmin_plot=save_kuzmin_plot)
 
     me.EntityCollection(
         description="Intrinsic magnetic properties computed with RSPt and UppASD.",
@@ -423,10 +425,10 @@ def generate_metadata_yaml(base_path: Path):
         yaml.dump(content, f)
 
 
-def generate_derived_files(base_path: Path) -> None:
+def generate_derived_files(base_path: Path, save_kuzmin_plot: bool) -> None:
     """Generate derived files."""
     generate_metadata_yaml(base_path)
     for i in [1, 2, 3]:
         if (base_path / f"UppASD/MC_{i}").is_dir():
             generate_mc_output(base_path, f"MC_{i}")
-    generate_intrinsic_properties_yaml(base_path)
+    generate_intrinsic_properties_yaml(base_path, save_kuzmin_plot=save_kuzmin_plot)
