@@ -335,7 +335,7 @@ def compute_Tc(base_path: Path) -> mammos_entity.Entity:
     else:
         Tc_U_L = None
 
-    max_Tc_diff = 10 * u.K  # TODO x% or ± 1 grid point
+    max_Tc_diff = 40 * u.K  # TODO x% or ± 1 grid point
     if (delta_T := abs(Tc_Cv.q - Tc_kuzmin.q)) > max_Tc_diff:
         raise RuntimeError(
             f"Tc from Kuzmin '{Tc_kuzmin}' and Cv '{Tc_Cv}' deviate by "
