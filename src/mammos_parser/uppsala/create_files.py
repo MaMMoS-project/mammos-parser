@@ -191,7 +191,7 @@ def _Tc_from_kuzmin(
     import matplotlib.pyplot as plt
 
     kuzmin_properties.Ms.plot()
-    plt.plot(temperature_data.T, temperature_data.Ms, "o")
+    plt.plot(temperature_data.T.value, temperature_data.Ms.q.to("A/m"), "o")
     plt.savefig("kuzmin-fit.pdf")
 
     Tc_kuzmin = kuzmin_properties.Tc
