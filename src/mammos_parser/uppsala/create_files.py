@@ -184,9 +184,17 @@ def compute_Ku(
 def _Tc_from_kuzmin(
     temperature_data: mammos_entity.EntityCollection,
 ) -> mammos_entity.Entity:
-    Tc_kuzmin = mammos_analysis.kuzmin.kuzmin_properties(
+    kuzmin_properties = mammos_analysis.kuzmin.kuzmin_properties(
         T=temperature_data.T, Ms=temperature_data.Ms
-    ).Tc
+    )
+
+    import matplotlib.pyplot as plt
+
+    kuzmin_properties.Ms.plot()
+    plt.plot(temperature_data.T, temperature_data.Ms, "o")
+    plt.savefig("kuzmin-fit.pdf")
+
+    Tc_kuzmin = kuzmin_properties.Tc
     Tc_kuzmin.description = "Tc from Kuz'min fit."
     logger.info("Tc from Kuzmin: %s", Tc_kuzmin)
     return Tc_kuzmin
