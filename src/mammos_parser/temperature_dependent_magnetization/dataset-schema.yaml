@@ -1,0 +1,22 @@
+meta:
+  version: 1
+  description: >-
+    Source-agnostic temperature-dependent magnetization data suitable for
+    Kuz'min fitting. The data may come from simulations or experiments.
+filesystem-schema:
+  magnetization.csv: {type: file, required: true}
+  fit_parameters.yaml: {type: file, required: false}
+file-schemas:
+  - validator: mammos_entity_file
+    files:
+      - magnetization.csv
+    schema:
+      T: {type: mammos_entity.Entity, ontology_label: ThermodynamicTemperature, unit: K}
+      Ms: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
+  - validator: mammos_entity_file
+    files:
+      - fit_parameters.yaml
+    schema:
+      Tc: {type: mammos_entity.Entity, ontology_label: CurieTemperature, unit: K}
+      Ms_0: {type: mammos_entity.Entity, ontology_label: SpontaneousMagnetization, unit: kA/m}
+      s: {type: mammos_units.Quantity, compatible_unit: ''}
